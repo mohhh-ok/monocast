@@ -98,9 +98,20 @@ body は必ず段落ごとに改行 \\n で区切り、1記事の段落は 250�
     schema: SCRIPT_SCHEMA,
   });
 
+  const title = typeof parsed?.title === "string" ? parsed.title : "";
+  const body = typeof parsed?.body === "string" ? parsed.body : "";
+  if (!body.trim()) {
+    const preview = JSON.stringify(parsed)?.slice(0, 300) ?? String(parsed);
+    throw new Error(
+      `LLM応答に body が含まれていません (adapter=${adapter.id}/${adapter.model}, keys=${
+        parsed && typeof parsed === "object" ? Object.keys(parsed).join(",") : typeof parsed
+      }, preview=${preview})`,
+    );
+  }
+
   return {
-    title: parsed.title.trim() || `${slot}のニュース`,
-    body: parsed.body.trim(),
+    title: title.trim() || `${slot}のニュース`,
+    body: body.trim(),
     sources: items.map((it) => ({
       title: it.title,
       link: it.link,
