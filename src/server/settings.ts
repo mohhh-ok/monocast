@@ -99,11 +99,29 @@ export const loadConfigFn = createServerFn({ method: "GET" }).handler(
   },
 );
 
+// ConfigSchema.partial() は zod v4 でも .default() を保持し、parse 時にデフォルトを
+// 全フィールドに埋め戻してしまう。これでは「届いた patch」だけを抽出できないため、
+// patch 部分は手動でキーごとに validate する。
+function parsePatch(raw: unknown): Partial<Config> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Partial<Config> = {};
+  const shape = ConfigSchema.shape as Record<string, z.ZodTypeAny>;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const field = shape[k];
+    if (!field || v === undefined) continue;
+    const parsed = field.safeParse(v);
+    if (parsed.success) {
+      (out as Record<string, unknown>)[k] = parsed.data;
+    }
+  }
+  return out;
+}
+
 export const updateConfigFn = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       profileId: z.string().min(1).max(64).optional(),
-      patch: ConfigSchema.partial(),
+      patch: z.unknown().transform(parsePatch),
     }),
   )
   .handler(async ({ data }): Promise<UpdateResult> => {
