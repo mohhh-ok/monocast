@@ -42,6 +42,8 @@ export const ConfigSchema = z.object({
   piperBin: z.string().min(1).default("piper"),
   piperModelPath: z.string().default(""),
   piperSpeakerId: z.coerce.number().int().nonnegative().optional(),
+  /** 段落ごとの音声合成を何並列で走らせるか (1 で逐次)。 */
+  ttsConcurrency: z.coerce.number().int().min(1).max(8).default(1),
   // null = 全ソース有効（デフォルト）、配列 = 明示選択、[] = 全 OFF
   enabledSources: z.array(z.string()).nullable().default(null),
 });

@@ -565,6 +565,20 @@ export function SettingsPanel({ onClose }: Props) {
             </Field>
           </>
         )}
+
+        <Field
+          label="並列合成数"
+          hint="段落単位の合成を何並列で走らせるか (1 で逐次)。大きくすると速くなる代わりに VOICEVOX/AivisSpeech などローカルエンジンの CPU 負荷が上がる。"
+        >
+          <input
+            type="number"
+            min={1}
+            max={8}
+            value={cfg.ttsConcurrency}
+            onChange={(e) => update("ttsConcurrency", Number(e.target.value))}
+            style={inputStyle}
+          />
+        </Field>
       </section>
 
       <section style={cardStyle}>

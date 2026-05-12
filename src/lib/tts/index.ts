@@ -45,8 +45,7 @@ function runFfmpeg(args: string[]): Promise<void> {
   });
 }
 
-async function pickAdapter(): Promise<TtsAdapter> {
-  const cfg = await getConfig();
+async function pickAdapter(cfg: Awaited<ReturnType<typeof getConfig>>): Promise<TtsAdapter> {
   switch (cfg.selectedTts) {
     case "say":
       return createSayAdapter({
@@ -110,24 +109,36 @@ export async function synthesizeToMp3(
   const paragraphs = splitParagraphs(scriptBody);
   if (paragraphs.length === 0) throw new Error("空の原稿です");
 
-  const adapter = await pickAdapter();
-  log.info(tag, `TTS=${adapter.name} 段落数=${paragraphs.length}`);
+  const cfg = await getConfig();
+  const adapter = await pickAdapter(cfg);
+  const concurrency = Math.max(1, Math.min(cfg.ttsConcurrency, paragraphs.length));
+  log.info(
+    tag,
+    `TTS=${adapter.name} 段落数=${paragraphs.length} 並列=${concurrency}`,
+  );
   const work = await fs.mkdtemp(path.join(tmpdir(), "airadio-"));
   try {
-    const wavPaths: string[] = [];
-    for (let i = 0; i < paragraphs.length; i++) {
-      // 話題の間と末尾に約0.9秒の無音
-      const trailingSilenceSec = 0.9;
-      const tSeg = Date.now();
-      const wav = await adapter.synthesize(paragraphs[i], { trailingSilenceSec });
-      log.info(
-        tag,
-        `  段落 ${i + 1}/${paragraphs.length} 合成 ${paragraphs[i].length}字 (${Date.now() - tSeg}ms)`,
-      );
-      const p = path.join(work, `seg-${String(i).padStart(3, "0")}.wav`);
-      await fs.writeFile(p, wav);
-      wavPaths.push(p);
-    }
+    const wavPaths: string[] = new Array(paragraphs.length);
+    let nextIndex = 0;
+    let done = 0;
+    const worker = async () => {
+      while (true) {
+        const i = nextIndex++;
+        if (i >= paragraphs.length) return;
+        const trailingSilenceSec = 0.9;
+        const tSeg = Date.now();
+        const wav = await adapter.synthesize(paragraphs[i], { trailingSilenceSec });
+        const p = path.join(work, `seg-${String(i).padStart(3, "0")}.wav`);
+        await fs.writeFile(p, wav);
+        wavPaths[i] = p;
+        done++;
+        log.info(
+          tag,
+          `  段落 ${i + 1}/${paragraphs.length} 合成 ${paragraphs[i].length}字 (${Date.now() - tSeg}ms) [${done}/${paragraphs.length}]`,
+        );
+      }
+    };
+    await Promise.all(Array.from({ length: concurrency }, worker));
     log.info(tag, "ffmpeg で結合中...");
 
     const listPath = path.join(work, "list.txt");
