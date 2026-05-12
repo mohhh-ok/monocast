@@ -26,7 +26,7 @@ export function createOllamaAdapter(opts: OllamaAdapterOptions): LlmAdapter {
           model,
           stream: false,
           format: schema,
-          options: { temperature: 0.7 },
+          options: { temperature: 0.7, num_predict: 2048 },
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
