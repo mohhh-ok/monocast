@@ -1,12 +1,34 @@
 import { spawn } from "node:child_process";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { ConfigSchema, getConfig, saveConfig, type Config } from "@/config";
+import {
+  ConfigSchema,
+  createProfile,
+  deleteProfile,
+  getActiveProfileId,
+  getConfig,
+  getProfileConfig,
+  listProfiles,
+  renameProfile,
+  saveConfig,
+  setActiveProfile,
+  type Config,
+  type ProfileMeta,
+} from "@/config";
 import { listSources, SourceOptionSchema } from "@/lib/news";
 import type { SourceOption } from "@/lib/news";
 
 export type UpdateResult =
   | { status: "ok"; config: Config }
+  | { status: "error"; message: string };
+
+export type ProfilesState = {
+  profiles: ProfileMeta[];
+  activeProfileId: string;
+};
+
+export type ProfilesResult =
+  | { status: "ok"; state: ProfilesState }
   | { status: "error"; message: string };
 
 export type SpeakerOption = { id: number; label: string };
@@ -22,11 +44,98 @@ export const loadConfigFn = createServerFn({ method: "GET" }).handler(
 );
 
 export const updateConfigFn = createServerFn({ method: "POST" })
-  .inputValidator(ConfigSchema.partial())
+  .inputValidator(
+    z.object({
+      profileId: z.string().min(1).max(64).optional(),
+      patch: ConfigSchema.partial(),
+    }),
+  )
   .handler(async ({ data }): Promise<UpdateResult> => {
     try {
-      const next = await saveConfig(data);
+      const next = await saveConfig(data.patch, data.profileId);
       return { status: "ok", config: next };
+    } catch (err) {
+      return {
+        status: "error",
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  });
+
+export const loadProfileConfigFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ id: z.string().min(1).max(64) }))
+  .handler(async ({ data }): Promise<Config | null> => getProfileConfig(data.id));
+
+async function snapshotProfiles(): Promise<ProfilesState> {
+  const [profiles, activeProfileId] = await Promise.all([
+    listProfiles(),
+    getActiveProfileId(),
+  ]);
+  return { profiles, activeProfileId };
+}
+
+export const listProfilesFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ProfilesState> => snapshotProfiles(),
+);
+
+export const createProfileFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      name: z.string().min(1).max(64),
+      fromId: z.string().min(1).max(64).optional(),
+    }),
+  )
+  .handler(async ({ data }): Promise<ProfilesResult> => {
+    try {
+      await createProfile(data);
+      return { status: "ok", state: await snapshotProfiles() };
+    } catch (err) {
+      return {
+        status: "error",
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  });
+
+export const renameProfileFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      id: z.string().min(1).max(64),
+      name: z.string().min(1).max(64),
+    }),
+  )
+  .handler(async ({ data }): Promise<ProfilesResult> => {
+    try {
+      await renameProfile(data.id, data.name);
+      return { status: "ok", state: await snapshotProfiles() };
+    } catch (err) {
+      return {
+        status: "error",
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  });
+
+export const deleteProfileFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ id: z.string().min(1).max(64) }))
+  .handler(async ({ data }): Promise<ProfilesResult> => {
+    try {
+      await deleteProfile(data.id);
+      return { status: "ok", state: await snapshotProfiles() };
+    } catch (err) {
+      return {
+        status: "error",
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  });
+
+export const setActiveProfileFn = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ id: z.string().min(1).max(64) }))
+  .handler(async ({ data }): Promise<ProfilesResult> => {
+    try {
+      await setActiveProfile(data.id);
+      return { status: "ok", state: await snapshotProfiles() };
     } catch (err) {
       return {
         status: "error",

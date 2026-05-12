@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LLM_IDS, TTS_IDS, type Config, type LlmId, type TtsId } from "@/config.shared";
 import {
   CATEGORY_LABELS,
@@ -8,12 +8,19 @@ import {
   type SourceCategory,
 } from "@/lib/news/types";
 import {
+  createProfileFn,
+  deleteProfileFn,
   fetchAivisSpeakersFn,
   fetchSayVoicesFn,
   fetchSpeakersFn,
+  listProfilesFn,
   listSourcesFn,
   loadConfigFn,
+  loadProfileConfigFn,
+  renameProfileFn,
+  setActiveProfileFn,
   updateConfigFn,
+  type ProfilesState,
   type SayVoiceOption,
   type SourceOption,
   type SpeakerOption,
@@ -29,25 +36,40 @@ type Props = {
   onClose?: () => void;
 };
 
+const AUTOSAVE_DEBOUNCE_MS = 400;
+
 export function SettingsPanel({ onClose }: Props) {
   const [cfg, setCfg] = useState<Config | null>(null);
+  const [profiles, setProfiles] = useState<ProfilesState | null>(null);
   const [speakers, setSpeakers] = useState<SpeakerOption[]>([]);
   const [aivisSpeakers, setAivisSpeakers] = useState<SpeakerOption[]>([]);
   const [sayVoices, setSayVoices] = useState<SayVoiceOption[]>([]);
   const [sources, setSources] = useState<SourceOption[]>([]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
+  // 編集中プロファイル（保存先）の id。profiles.activeProfileId と通常一致するが、
+  // 切替直後にロード完了するまでズレるので別管理。
+  const editingProfileIdRef = useRef<string | null>(null);
+  // debounce タイマーと、進行中の保存 Promise（切替時に await するため）。
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inflightSaveRef = useRef<Promise<unknown> | null>(null);
+  // 直近で要求された patch（debounce の間に複数フィールド変わった場合をマージする）。
+  const pendingPatchRef = useRef<Partial<Config>>({});
+
   useEffect(() => {
     let cancelled = false;
     Promise.all([
       loadConfigFn(),
+      listProfilesFn(),
       fetchSpeakersFn(),
       fetchAivisSpeakersFn(),
       fetchSayVoicesFn(),
       listSourcesFn(),
-    ]).then(([c, sp, asp, sv, src]) => {
+    ]).then(([c, pf, sp, asp, sv, src]) => {
       if (cancelled) return;
       setCfg(c);
+      setProfiles(pf);
+      editingProfileIdRef.current = pf.activeProfileId;
       setSpeakers(sp);
       setAivisSpeakers(asp);
       setSayVoices(sv);
@@ -58,8 +80,65 @@ export function SettingsPanel({ onClose }: Props) {
     };
   }, []);
 
+  const flushSave = useCallback(async (): Promise<void> => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    const patch = pendingPatchRef.current;
+    pendingPatchRef.current = {};
+    const profileId = editingProfileIdRef.current;
+    if (!profileId || Object.keys(patch).length === 0) {
+      // 進行中の保存があれば終わるのを待つ
+      if (inflightSaveRef.current) await inflightSaveRef.current;
+      return;
+    }
+    setStatus({ kind: "saving" });
+    const p = (async () => {
+      const res = await updateConfigFn({ data: { profileId, patch } });
+      if (res.status === "ok") {
+        setStatus({ kind: "saved" });
+        setTimeout(
+          () =>
+            setStatus((s) => (s.kind === "saved" ? { kind: "idle" } : s)),
+          1200,
+        );
+      } else {
+        setStatus({ kind: "error", message: res.message });
+      }
+    })();
+    inflightSaveRef.current = p;
+    try {
+      await p;
+    } finally {
+      if (inflightSaveRef.current === p) inflightSaveRef.current = null;
+    }
+  }, []);
+
+  const scheduleSave = useCallback(
+    (patch: Partial<Config>) => {
+      pendingPatchRef.current = { ...pendingPatchRef.current, ...patch };
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        debounceTimerRef.current = null;
+        void flushSave();
+      }, AUTOSAVE_DEBOUNCE_MS);
+    },
+    [flushSave],
+  );
+
+  // アンマウント時に保存し漏れがないよう flush。
+  useEffect(() => {
+    return () => {
+      // 同期版: pending を即発火するため timer をクリアして flush。
+      // unmount 後の state setter は no-op なので問題ない。
+      void flushSave();
+    };
+  }, [flushSave]);
+
   const update = <K extends keyof Config>(key: K, value: Config[K]) => {
     setCfg((prev) => (prev ? { ...prev, [key]: value } : prev));
+    scheduleSave({ [key]: value } as Partial<Config>);
   };
 
   const sourcesByCategory = useMemo(() => {
@@ -122,16 +201,101 @@ export function SettingsPanel({ onClose }: Props) {
   const selectLlm = (id: LlmId) => update("selectedLlm", id);
   const selectTts = (id: TtsId) => update("selectedTts", id);
 
-  const onSave = async () => {
-    setStatus({ kind: "saving" });
-    const res = await updateConfigFn({ data: cfg });
-    if (res.status === "ok") {
-      setCfg(res.config);
-      setStatus({ kind: "saved" });
-      setTimeout(() => setStatus({ kind: "idle" }), 1500);
-    } else {
+  const switchProfile = async (id: string) => {
+    if (!profiles || id === profiles.activeProfileId) return;
+    // 進行中の保存・debounce を全部編集中プロファイルへ流し切ってから切り替える。
+    await flushSave();
+    editingProfileIdRef.current = id;
+    const res = await setActiveProfileFn({ data: { id } });
+    if (res.status !== "ok") {
       setStatus({ kind: "error", message: res.message });
+      return;
     }
+    setProfiles(res.state);
+    const nextCfg = await loadProfileConfigFn({ data: { id } });
+    if (nextCfg) setCfg(nextCfg);
+  };
+
+  const refreshProfiles = (state: ProfilesState) => {
+    setProfiles(state);
+  };
+
+  const createNewProfile = async (fromActive: boolean) => {
+    if (!profiles) return;
+    const name = window.prompt(
+      fromActive ? "複製したプロファイルの名前" : "新しいプロファイルの名前",
+      "",
+    );
+    if (!name || !name.trim()) return;
+    await flushSave();
+    const res = await createProfileFn({
+      data: {
+        name: name.trim(),
+        fromId: fromActive ? profiles.activeProfileId : undefined,
+      },
+    });
+    if (res.status !== "ok") {
+      setStatus({ kind: "error", message: res.message });
+      return;
+    }
+    refreshProfiles(res.state);
+    // 作成したプロファイルへすぐ切り替える（追加→ active が直感的）。
+    const created = res.state.profiles.find(
+      (p) =>
+        p.name === name.trim() &&
+        !profiles.profiles.some((existing) => existing.id === p.id),
+    );
+    if (created) await switchProfile(created.id);
+  };
+
+  const renameActiveProfile = async () => {
+    if (!profiles) return;
+    const current = profiles.profiles.find(
+      (p) => p.id === profiles.activeProfileId,
+    );
+    const name = window.prompt("プロファイル名を変更", current?.name ?? "");
+    if (!name || !name.trim() || name.trim() === current?.name) return;
+    const res = await renameProfileFn({
+      data: { id: profiles.activeProfileId, name: name.trim() },
+    });
+    if (res.status !== "ok") {
+      setStatus({ kind: "error", message: res.message });
+      return;
+    }
+    refreshProfiles(res.state);
+  };
+
+  const deleteActiveProfile = async () => {
+    if (!profiles) return;
+    if (profiles.profiles.length <= 1) return;
+    const current = profiles.profiles.find(
+      (p) => p.id === profiles.activeProfileId,
+    );
+    if (
+      !window.confirm(
+        `プロファイル「${current?.name ?? profiles.activeProfileId}」を削除します。よろしいですか？`,
+      )
+    )
+      return;
+    // pending な編集は捨てる（消すプロファイル宛なので意味がない）。
+    pendingPatchRef.current = {};
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    const res = await deleteProfileFn({
+      data: { id: profiles.activeProfileId },
+    });
+    if (res.status !== "ok") {
+      setStatus({ kind: "error", message: res.message });
+      return;
+    }
+    refreshProfiles(res.state);
+    editingProfileIdRef.current = res.state.activeProfileId;
+    const nextCfg = await loadProfileConfigFn({
+      data: { id: res.state.activeProfileId },
+    });
+    if (nextCfg) setCfg(nextCfg);
   };
 
   const refreshSpeakers = async () => {
@@ -167,6 +331,64 @@ export function SettingsPanel({ onClose }: Props) {
           </button>
         )}
       </header>
+
+      {profiles && (
+        <section style={cardStyle}>
+          <h2 style={sectionStyle}>プロファイル</h2>
+          <Field
+            label="使用中のプロファイル"
+            hint="フィールドを編集すると自動で保存されます。プロファイルを切り替えると、設定全体が入れ替わります。"
+          >
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <select
+                value={profiles.activeProfileId}
+                onChange={(e) => {
+                  void switchProfile(e.target.value);
+                }}
+                style={{ ...inputStyle, flex: "1 1 200px" }}
+              >
+                {profiles.profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => void createNewProfile(false)}
+                style={btnStyle()}
+              >
+                新規
+              </button>
+              <button
+                type="button"
+                onClick={() => void createNewProfile(true)}
+                style={btnStyle()}
+              >
+                複製
+              </button>
+              <button
+                type="button"
+                onClick={() => void renameActiveProfile()}
+                style={btnStyle()}
+              >
+                リネーム
+              </button>
+              <button
+                type="button"
+                onClick={() => void deleteActiveProfile()}
+                disabled={profiles.profiles.length <= 1}
+                style={{
+                  ...btnStyle(),
+                  opacity: profiles.profiles.length <= 1 ? 0.4 : 1,
+                }}
+              >
+                削除
+              </button>
+            </div>
+          </Field>
+        </section>
+      )}
 
       <section style={cardStyle}>
         <h2 style={sectionStyle}>LLM</h2>
@@ -649,14 +871,6 @@ export function SettingsPanel({ onClose }: Props) {
       </section>
 
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={status.kind === "saving"}
-          style={primaryBtnStyle(status.kind === "saving")}
-        >
-          {status.kind === "saving" ? "保存中..." : "保存"}
-        </button>
         {onClose ? (
           <button
             type="button"
@@ -670,12 +884,9 @@ export function SettingsPanel({ onClose }: Props) {
             ← トップへ戻る
           </Link>
         )}
-        {status.kind === "saved" && (
-          <span style={{ color: "#8aff9d", fontSize: 13 }}>保存しました</span>
-        )}
-        {status.kind === "error" && (
-          <span style={{ color: "#ffb8c0", fontSize: 13 }}>{status.message}</span>
-        )}
+        <span style={{ fontSize: 12, color: statusColor(status) }}>
+          {statusLabel(status)}
+        </span>
       </div>
     </>
   );
@@ -872,15 +1083,28 @@ function btnStyle(): React.CSSProperties {
   };
 }
 
-function primaryBtnStyle(disabled: boolean): React.CSSProperties {
-  return {
-    padding: "10px 24px",
-    borderRadius: 999,
-    background: "rgba(255,122,138,0.15)",
-    border: "1px solid #ff7a8a",
-    color: "#ff7a8a",
-    fontSize: 14,
-    opacity: disabled ? 0.5 : 1,
-    cursor: disabled ? "default" : "pointer",
-  };
+function statusLabel(status: Status): string {
+  switch (status.kind) {
+    case "idle":
+      return "自動保存が有効です";
+    case "saving":
+      return "保存中...";
+    case "saved":
+      return "保存しました";
+    case "error":
+      return `保存エラー: ${status.message}`;
+  }
+}
+
+function statusColor(status: Status): string {
+  switch (status.kind) {
+    case "saved":
+      return "#8aff9d";
+    case "error":
+      return "#ffb8c0";
+    case "saving":
+      return "#cbd2ee";
+    default:
+      return "#5a6188";
+  }
 }
