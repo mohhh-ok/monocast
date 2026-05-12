@@ -156,9 +156,9 @@ export async function synthesizeToSegments(
     while (true) {
       const i = nextIndex++;
       if (i >= paragraphs.length) return;
-      // 最終段落は次がないので無音不要
+      // 最終段落は番組間のクッションとして 3 秒、それ以外は段落間の 0.9 秒。
       const isLast = i === paragraphs.length - 1;
-      const trailingSilenceSec = isLast ? 0 : 0.9;
+      const trailingSilenceSec = isLast ? 3 : 0.9;
       const tSeg = Date.now();
       log.debug(tag, `段落 ${i + 1}/${paragraphs.length} 合成開始`, {
         index: i,
