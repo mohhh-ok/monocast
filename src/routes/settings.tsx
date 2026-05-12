@@ -1,21 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Config } from "@/config";
+import { CATEGORY_LABELS, CATEGORY_ORDER, type SourceCategory } from "@/lib/news";
 import {
   fetchSpeakersFn,
+  listSourcesFn,
   loadConfigFn,
   updateConfigFn,
+  type SourceOption,
   type SpeakerOption,
 } from "@/server/settings";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
   loader: async () => {
-    const [cfg, speakers] = await Promise.all([
+    const [cfg, speakers, sources] = await Promise.all([
       loadConfigFn(),
       fetchSpeakersFn(),
+      listSourcesFn(),
     ]);
-    return { cfg, speakers };
+    return { cfg, speakers, sources };
   },
 });
 
@@ -30,10 +34,59 @@ function SettingsPage() {
   const [cfg, setCfg] = useState<Config>(initial.cfg);
   const [speakers, setSpeakers] = useState<SpeakerOption[]>(initial.speakers);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const sources = initial.sources;
 
   const update = <K extends keyof Config>(key: K, value: Config[K]) => {
     setCfg({ ...cfg, [key]: value });
   };
+
+  const sourcesByCategory = useMemo(() => {
+    const map: Record<SourceCategory, SourceOption[]> = {
+      domestic: [],
+      tech: [],
+      overseas: [],
+      hatena: [],
+    };
+    for (const s of sources) map[s.category].push(s);
+    return map;
+  }, [sources]);
+
+  // null = 全件有効。表示時は「全 ID 選択」として扱う。
+  const enabledSet = useMemo(
+    () => new Set(cfg.enabledSources ?? sources.map((s) => s.id)),
+    [cfg.enabledSources, sources],
+  );
+  const isAllEnabled = cfg.enabledSources === null;
+
+  const setEnabledSources = (next: Set<string>) => {
+    // 全件に戻った場合は null に正規化する（「未設定」表現を保つ）
+    if (next.size === sources.length) {
+      update("enabledSources", null);
+    } else {
+      update(
+        "enabledSources",
+        sources.filter((s) => next.has(s.id)).map((s) => s.id),
+      );
+    }
+  };
+
+  const toggleSource = (id: string) => {
+    const next = new Set(enabledSet);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setEnabledSources(next);
+  };
+
+  const toggleCategory = (cat: SourceCategory) => {
+    const inCat = sourcesByCategory[cat].map((s) => s.id);
+    const allOn = inCat.every((id) => enabledSet.has(id));
+    const next = new Set(enabledSet);
+    if (allOn) for (const id of inCat) next.delete(id);
+    else for (const id of inCat) next.add(id);
+    setEnabledSources(next);
+  };
+
+  const resetSources = () => update("enabledSources", null);
 
   const onSave = async () => {
     setStatus({ kind: "saving" });
@@ -152,6 +205,73 @@ function SettingsPage() {
         </Field>
       </section>
 
+      <section style={cardStyle}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 18,
+          }}
+        >
+          <h2 style={{ ...sectionStyle, marginBottom: 0 }}>ニュースソース</h2>
+          <button
+            type="button"
+            onClick={resetSources}
+            disabled={isAllEnabled}
+            style={{ ...btnStyle(), opacity: isAllEnabled ? 0.4 : 1 }}
+          >
+            全件に戻す
+          </button>
+        </div>
+
+        {CATEGORY_ORDER.map((cat) => {
+          const list = sourcesByCategory[cat];
+          if (list.length === 0) return null;
+          const onCount = list.filter((s) => enabledSet.has(s.id)).length;
+          const allOn = onCount === list.length;
+          const someOn = onCount > 0 && onCount < list.length;
+          return (
+            <div key={cat} style={{ marginBottom: 18 }}>
+              <label style={categoryLabelStyle}>
+                <input
+                  type="checkbox"
+                  checked={allOn}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someOn;
+                  }}
+                  onChange={() => toggleCategory(cat)}
+                />
+                <span style={{ color: "#cbd2ee", fontSize: 14 }}>
+                  {CATEGORY_LABELS[cat]}
+                </span>
+                <span style={{ color: "#5a6188", fontSize: 12 }}>
+                  ({onCount}/{list.length})
+                </span>
+              </label>
+              <div style={sourceGroupStyle}>
+                {list.map((s) => (
+                  <label key={s.id} style={sourceItemStyle}>
+                    <input
+                      type="checkbox"
+                      checked={enabledSet.has(s.id)}
+                      onChange={() => toggleSource(s.id)}
+                    />
+                    <span style={{ fontSize: 13, color: "#cbd2ee" }}>{s.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+
+        {enabledSet.size === 0 && (
+          <div style={{ fontSize: 12, color: "#ffb8c0", marginTop: 8 }}>
+            すべてのソースが OFF です。番組生成は失敗します。
+          </div>
+        )}
+      </section>
+
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         <button
           type="button"
@@ -236,6 +356,31 @@ const inputStyle: React.CSSProperties = {
   color: "#e6e9f5",
   fontSize: 14,
   fontFamily: "inherit",
+};
+
+const categoryLabelStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  cursor: "pointer",
+  paddingBottom: 8,
+  borderBottom: "1px solid rgba(255,255,255,0.06)",
+};
+
+const sourceGroupStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+  gap: 6,
+  paddingTop: 10,
+  paddingLeft: 24,
+};
+
+const sourceItemStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  cursor: "pointer",
+  padding: "4px 0",
 };
 
 function pillStyle(active: boolean): React.CSSProperties {

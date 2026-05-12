@@ -1,11 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { ConfigSchema, getConfig, saveConfig, type Config } from "@/config";
+import { listSources } from "@/lib/news";
+import type { SourceCategory } from "@/lib/news";
 
 export type UpdateResult =
   | { status: "ok"; config: Config }
   | { status: "error"; message: string };
 
 export type SpeakerOption = { id: number; label: string };
+
+export type SourceOption = {
+  id: string;
+  name: string;
+  category: SourceCategory;
+};
 
 export const loadConfigFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<Config> => {
@@ -26,6 +34,16 @@ export const updateConfigFn = createServerFn({ method: "POST" })
       };
     }
   });
+
+export const listSourcesFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<SourceOption[]> => {
+    return listSources().map((s) => ({
+      id: s.id,
+      name: s.name,
+      category: s.category,
+    }));
+  },
+);
 
 export const fetchSpeakersFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<SpeakerOption[]> => {

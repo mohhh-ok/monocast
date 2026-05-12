@@ -11,6 +11,8 @@ export const ConfigSchema = z.object({
   ollamaModel: z.string().min(1).default("qwen2.5:7b-instruct"),
   voicevoxUrl: z.string().url().default("http://localhost:50021"),
   voicevoxSpeaker: z.coerce.number().int().nonnegative().default(2),
+  // null = 全ソース有効（デフォルト）、配列 = 明示選択、[] = 全 OFF
+  enabledSources: z.array(z.string()).nullable().default(null),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

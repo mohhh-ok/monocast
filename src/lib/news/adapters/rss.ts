@@ -1,10 +1,13 @@
 import Parser from "rss-parser";
-import type { NewsAdapter, NewsItem } from "../types";
+import type { NewsAdapter, NewsItem, SourceCategory } from "../types";
 
 export type RssFeed = {
+  /** 設定保存に使う安定 ID。 */
+  id: string;
   /** ソース表示名。NewsItem.source に入る。 */
   name: string;
   url: string;
+  category: SourceCategory;
 };
 
 export type RssAdapterOptions = {

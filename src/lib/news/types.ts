@@ -12,3 +12,19 @@ export type NewsAdapter = {
   /** 1 adapter が返す件数の上限を渡して取得する。 */
   fetch(limit: number): Promise<NewsItem[]>;
 };
+
+export type SourceCategory = "domestic" | "tech" | "overseas" | "hatena";
+
+export const CATEGORY_LABELS: Record<SourceCategory, string> = {
+  domestic: "国内",
+  tech: "テック",
+  overseas: "海外",
+  hatena: "はてブ",
+};
+
+export const CATEGORY_ORDER: readonly SourceCategory[] = [
+  "domestic",
+  "tech",
+  "overseas",
+  "hatena",
+];
