@@ -46,7 +46,7 @@ export function listSources(): readonly RssFeed[] {
 
 export type FetchNewsResult = {
   items: NewsItem[];
-  /** 重複タイトル除去後の候補件数。 */
+  /** 取得した候補件数。 */
   candidateCount: number;
   /** 候補のうち既出URL（過去14日）として除外された件数。 */
   seenCount: number;
@@ -74,24 +74,15 @@ export async function fetchNews(
   const adapter = createRssAdapter({ name: "rss:default", feeds });
   const items = await adapter.fetch(limit);
 
-  // 重複タイトル除去
-  const seenTitles = new Set<string>();
-  const dedup = items.filter((it) => {
-    const key = it.title;
-    if (!key || seenTitles.has(key)) return false;
-    seenTitles.add(key);
-    return true;
-  });
-
   // 過去14日に番組化済みのURLを除外（seen.ts は node:sqlite 依存なので動的 import）
   const { getSeenSet, purgeExpired } = await import("./seen");
   const purged = purgeExpired();
   if (purged > 0) log.info("news", `seen_urls TTL 削除 ${purged}件`);
-  const links = dedup.map((it) => it.link).filter((l) => l.length > 0);
+  const links = items.map((it) => it.link).filter((l) => l.length > 0);
   const seenUrls = getSeenSet(links);
-  const fresh = dedup.filter((it) => !seenUrls.has(it.link));
+  const fresh = items.filter((it) => !seenUrls.has(it.link));
   if (seenUrls.size > 0)
-    log.info("news", `既出URL除外 ${seenUrls.size}件 / 候補 ${dedup.length}件`);
+    log.info("news", `既出URL除外 ${seenUrls.size}件 / 候補 ${items.length}件`);
 
   // カテゴリ→ソース別のバケットに振り分け、カテゴリ間で均等クォータ＋
   // カテゴリ内ソース間ラウンドロビンで選出する。フィード本数が多いカテゴリに
@@ -114,7 +105,7 @@ export async function fetchNews(
 
   const activeCategories = CATEGORY_ORDER.filter((c) => buckets.has(c));
   if (activeCategories.length === 0)
-    return { items: [], candidateCount: dedup.length, seenCount: seenUrls.size };
+    return { items: [], candidateCount: items.length, seenCount: seenUrls.size };
 
   const base = Math.floor(limit / activeCategories.length);
   const remainder = limit % activeCategories.length;
@@ -163,7 +154,7 @@ export async function fetchNews(
 
   return {
     items: selected,
-    candidateCount: dedup.length,
+    candidateCount: items.length,
     seenCount: seenUrls.size,
   };
 }
