@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { LLM_IDS, type Config, type LlmId } from "@/config";
+import { LLM_IDS, type Config, type LlmId } from "@/config.shared";
 import { CATEGORY_LABELS, CATEGORY_ORDER, type SourceCategory } from "@/lib/news";
 import {
   fetchSpeakersFn,

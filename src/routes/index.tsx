@@ -8,7 +8,7 @@ import {
 } from "@/server/programs";
 import { historyAtom } from "@/lib/atoms";
 import { SettingsPanel } from "@/components/SettingsPanel";
-import type { Program } from "@/lib/queue";
+import type { Program } from "@/lib/queue.types";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -387,10 +387,10 @@ function Home() {
         }}
         style={{
           position: "fixed",
+          inset: "auto",
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          inset: "auto",
           margin: 0,
           width: "min(720px, 100%)",
           maxHeight: "calc(100vh - 96px)",

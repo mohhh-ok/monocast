@@ -1,16 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import type { Program } from "./queue.types";
 
-export type Program = {
-  id: string;
-  title: string;
-  body: string;
-  audioUrl: string;
-  durationSec: number;
-  createdAt: string;
-  sources: { title: string; link: string; source: string }[];
-  llm: { id: string; label: string; model: string };
-};
+export type { Program };
 
 const DATA_FILE = path.join(process.cwd(), "data", "queue.json");
 
