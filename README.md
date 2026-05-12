@@ -98,12 +98,12 @@ npm run dev
 
 ブラウザで `http://localhost:3000` を開くと、最初の番組を自動生成して再生し始める。キューが 2 本未満になると裏で補充される。
 
-## 仕様メモ
+## 仕様ドキュメント
 
-- 1 番組 = 5 件程度のニュースをまとめた 90〜180 秒の読み上げ
-- 番組メタは `data/queue.json` に永続化
-- 音声は `public/audio/*.mp3` に置かれ、再生終了時に削除される
-- 1 リクエストにつき生成は 1 件ずつ (二重生成防止)
+詳細は [`docs/features/`](docs/features/) を参照。
+
+- [番組とキュー](docs/features/program.md)
+- [ログ](docs/features/logging.md)
 
 ## ありそうな拡張
 
