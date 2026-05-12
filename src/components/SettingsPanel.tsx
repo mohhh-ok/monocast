@@ -6,7 +6,7 @@ import {
   CATEGORY_ORDER,
   SourceCategorySchema,
   type SourceCategory,
-} from "@/lib/news";
+} from "@/lib/news/types";
 import {
   fetchAivisSpeakersFn,
   fetchSayVoicesFn,

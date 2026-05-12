@@ -4,7 +4,6 @@ import { getConfig } from "@/config";
 import type { LlmAdapter } from "./llm";
 import { log } from "./log";
 import { fetchNews } from "./news";
-import { markSeen } from "./news/seen";
 import { addProgram, type Program } from "./queue";
 import { generateProgramScript } from "./script";
 import { synthesizeToMp3 } from "./tts";
@@ -70,6 +69,7 @@ export async function produceProgram(
     },
   };
   await addProgram(program);
+  const { markSeen } = await import("./news/seen");
   markSeen(script.sources.map((s) => s.link));
   log.info(tag, `番組追加完了 合計 ${Date.now() - t0}ms`);
   return { status: "ok", program };

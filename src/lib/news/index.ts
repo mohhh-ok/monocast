@@ -1,6 +1,5 @@
 import { log } from "../log";
 import { createRssAdapter, type RssFeed } from "./adapters/rss";
-import { getSeenSet, purgeExpired } from "./seen";
 import type { NewsItem } from "./types";
 
 export type { NewsAdapter, NewsItem, SourceCategory, SourceOption } from "./types";
@@ -75,7 +74,8 @@ export async function fetchNews(
     return true;
   });
 
-  // 過去30日に番組化済みのURLを除外
+  // 過去30日に番組化済みのURLを除外（seen.ts は node:sqlite 依存なので動的 import）
+  const { getSeenSet, purgeExpired } = await import("./seen");
   const purged = purgeExpired();
   if (purged > 0) log.info("news", `seen_urls TTL 削除 ${purged}件`);
   const links = dedup.map((it) => it.link).filter((l) => l.length > 0);
