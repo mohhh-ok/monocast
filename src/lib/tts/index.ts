@@ -103,7 +103,16 @@ export type SynthesizeStreamOptions = {
   onStart?: (totalCount: number) => Promise<void> | void;
   /** インデックス順に「公開可能になった」セグメントのスナップショットを渡す。 */
   onProgress?: (publishedSegments: AudioSegment[]) => Promise<void> | void;
+  /** abort 用 signal。段落境界でチェックし、abort されたら例外を投げる。 */
+  signal?: AbortSignal;
 };
+
+class TtsAbortError extends Error {
+  constructor() {
+    super("tts aborted");
+    this.name = "TtsAbortError";
+  }
+}
 
 /**
  * 原稿テキストを TTS adapter で段落ごとに合成し、wav ファイルとして outDir に保存する。
@@ -154,6 +163,7 @@ export async function synthesizeToSegments(
 
   const worker = async () => {
     while (true) {
+      if (opts.signal?.aborted) throw new TtsAbortError();
       const i = nextIndex++;
       if (i >= paragraphs.length) return;
       // 最終段落は番組間のクッションとして 3 秒、それ以外は段落間の 0.9 秒。

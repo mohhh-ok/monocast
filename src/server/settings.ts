@@ -17,6 +17,58 @@ import {
 } from "@/config";
 import { listSources, SourceOptionSchema } from "@/lib/news";
 import type { SourceOption } from "@/lib/news";
+import type { ProducePhase } from "@/lib/produce";
+import { cancelInFlight, getInFlightSnapshot } from "./programs";
+
+// 進行中フェーズで実際に「使う」設定キー。これらが変わったらキャンセル対象。
+// - news: ニュース取得中。enabledSources のほか、これから走る script/tts も影響あり。
+// - script: 台本生成中。LLM 関連 + これから走る tts も影響あり（news は終了済み）。
+// - tts: 音声合成中。TTS 関連のみ影響（script/news は終了済み）。
+// - done: 完了直前。基本的に何も影響しないが念のため空集合。
+const LLM_KEYS: ReadonlyArray<keyof Config> = [
+  "selectedLlm",
+  "anthropicModel",
+  "openaiModel",
+  "geminiModel",
+  "ollamaUrl",
+  "ollamaModel",
+];
+const TTS_KEYS: ReadonlyArray<keyof Config> = [
+  "selectedTts",
+  "voicevoxUrl",
+  "voicevoxSpeaker",
+  "aivisSpeechUrl",
+  "aivisSpeechSpeaker",
+  "sayVoice",
+  "sayRate",
+  "openaiTtsModel",
+  "openaiTtsVoice",
+  "elevenlabsModelId",
+  "elevenlabsVoiceId",
+  "kokoroUrl",
+  "kokoroVoice",
+  "ttsConcurrency",
+];
+const SOURCE_KEYS: ReadonlyArray<keyof Config> = ["enabledSources"];
+
+const PHASE_AFFECTING_KEYS: Record<ProducePhase, ReadonlySet<keyof Config>> = {
+  news: new Set([...SOURCE_KEYS, ...LLM_KEYS, ...TTS_KEYS]),
+  script: new Set([...LLM_KEYS, ...TTS_KEYS]),
+  tts: new Set(TTS_KEYS),
+  done: new Set(),
+};
+
+/** patch のうち、現在値から実際に変わったキーだけを返す。 */
+function changedKeys(prev: Config, patch: Partial<Config>): Array<keyof Config> {
+  const out: Array<keyof Config> = [];
+  for (const k of Object.keys(patch) as Array<keyof Config>) {
+    const next = patch[k];
+    if (next === undefined) continue;
+    const before = prev[k];
+    if (JSON.stringify(before) !== JSON.stringify(next)) out.push(k);
+  }
+  return out;
+}
 
 export type UpdateResult =
   | { status: "ok"; config: Config }
@@ -52,6 +104,22 @@ export const updateConfigFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }): Promise<UpdateResult> => {
     try {
+      // 進行中タスクが「いま使ってる」設定が書き換わるなら中断する。
+      // 進行中タスクと別プロファイルへの編集はスルー（アクティブ profile しか produce は使わない）。
+      const inflight = getInFlightSnapshot();
+      if (inflight) {
+        const targetProfileId =
+          data.profileId ?? (await getActiveProfileId());
+        if (targetProfileId === inflight.profileId) {
+          const prev = await getConfig();
+          const changed = changedKeys(prev, data.patch);
+          const affecting = PHASE_AFFECTING_KEYS[inflight.phase];
+          const hit = changed.filter((k) => affecting.has(k));
+          if (hit.length > 0) {
+            cancelInFlight(`settings changed: ${hit.join(",")}`);
+          }
+        }
+      }
       const next = await saveConfig(data.patch, data.profileId);
       return { status: "ok", config: next };
     } catch (err) {
@@ -217,4 +285,93 @@ export const fetchAivisSpeakersFn = createServerFn({ method: "GET" })
     const cfg = await getConfig();
     const url = data?.url ?? cfg.aivisSpeechUrl;
     return fetchVoicevoxCompatSpeakers(url);
+  });
+
+export type EngineHealth = {
+  ok: boolean;
+  status?: number;
+  latencyMs?: number;
+  error?: string;
+};
+
+/** VOICEVOX 互換 /speakers のレスポンス形を検証。 */
+function isVoicevoxSpeakers(body: unknown): boolean {
+  if (!Array.isArray(body) || body.length === 0) return false;
+  const first = body[0] as Record<string, unknown> | null;
+  if (!first || typeof first !== "object") return false;
+  if (typeof first.name !== "string") return false;
+  if (!Array.isArray(first.styles)) return false;
+  return true;
+}
+
+/** Kokoro-FastAPI /v1/audio/voices のレスポンス形を検証（配列 or {voices: []}）。 */
+function isKokoroVoices(body: unknown): boolean {
+  if (Array.isArray(body)) return body.length > 0 && typeof body[0] === "string";
+  if (body && typeof body === "object") {
+    const v = (body as { voices?: unknown }).voices;
+    if (Array.isArray(v) && v.length > 0) return true;
+  }
+  return false;
+}
+
+const HEALTH_CHECK: Record<
+  "voicevox" | "aivisspeech" | "kokoro",
+  { path: string; validate: (body: unknown) => boolean }
+> = {
+  voicevox: { path: "/speakers", validate: isVoicevoxSpeakers },
+  aivisspeech: { path: "/speakers", validate: isVoicevoxSpeakers },
+  kokoro: { path: "/v1/audio/voices", validate: isKokoroVoices },
+};
+
+export const checkEngineHealthFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      id: z.enum(["voicevox", "aivisspeech", "kokoro"]),
+      url: z.string().url(),
+    }),
+  )
+  .handler(async ({ data }): Promise<EngineHealth> => {
+    const { path, validate } = HEALTH_CHECK[data.id];
+    const target = `${data.url.replace(/\/$/, "")}${path}`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 2000);
+    const start = Date.now();
+    try {
+      const res = await fetch(target, {
+        cache: "no-store",
+        signal: ctrl.signal,
+      });
+      const latencyMs = Date.now() - start;
+      if (!res.ok) {
+        return { ok: false, status: res.status, latencyMs };
+      }
+      let body: unknown;
+      try {
+        body = await res.json();
+      } catch {
+        return {
+          ok: false,
+          status: res.status,
+          latencyMs,
+          error: "JSON parse 失敗 — 別サービスの可能性",
+        };
+      }
+      if (!validate(body)) {
+        return {
+          ok: false,
+          status: res.status,
+          latencyMs,
+          error: "想定外のレスポンス形 — 別サービスの可能性",
+        };
+      }
+      return { ok: true, status: res.status, latencyMs };
+    } catch (err) {
+      return {
+        ok: false,
+        latencyMs: Date.now() - start,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    } finally {
+      clearTimeout(timer);
+    }
   });
