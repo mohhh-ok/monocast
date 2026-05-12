@@ -1,9 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { NewsItem } from "./news";
+import { getEnv } from "./env";
 
-const client = new Anthropic();
-
-const MODEL = "claude-haiku-4-5";
+export type LlmProvider = "anthropic" | "ollama";
 
 const SYSTEM_PROMPT = `あなたは「ききながしラジオ」のパーソナリティです。
 作業中や寝る前に流して心地よい、落ち着いたトーンの日本語ナレーション原稿を書きます。
@@ -17,6 +16,23 @@ const SYSTEM_PROMPT = `あなたは「ききながしラジオ」のパーソナ
 - 出力は読み上げ原稿のみ。記号やマークダウンは使わない。改行は段落ごとに1つ。
 - 全体で 90 秒〜180 秒で読み切れる分量にする。`;
 
+const SCRIPT_SCHEMA = {
+  type: "object",
+  properties: {
+    title: {
+      type: "string",
+      description: "番組タイトル。20文字以内。",
+    },
+    body: {
+      type: "string",
+      description:
+        "読み上げ原稿本体。記号やマークダウンは含めない。段落は改行で区切る。",
+    },
+  },
+  required: ["title", "body"],
+  additionalProperties: false,
+} as const;
+
 export type ProgramScript = {
   title: string;
   body: string;
@@ -25,6 +41,7 @@ export type ProgramScript = {
 
 export async function generateProgramScript(
   items: NewsItem[],
+  provider: LlmProvider,
 ): Promise<ProgramScript> {
   const itemList = items
     .map(
@@ -40,34 +57,16 @@ export async function generateProgramScript(
 ニュース素材:
 ${itemList}
 
-出力形式（厳密に守る）:
-TITLE: <番組タイトル 20文字以内>
----
-<本文。読み上げ原稿のみ>`;
+JSON で {"title": "...", "body": "..."} の形で返してください。title は 20 文字以内の番組タイトル、body は読み上げ原稿のみ（記号・マークダウンなし、段落は改行で区切る）。`;
 
-  const res = await client.messages.create({
-    model: MODEL,
-    max_tokens: 1500,
-    system: [
-      {
-        type: "text",
-        text: SYSTEM_PROMPT,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: [{ role: "user", content: userPrompt }],
-  });
+  const parsed =
+    provider === "ollama"
+      ? await callOllama(userPrompt)
+      : await callAnthropic(userPrompt);
 
-  const text = res.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n")
-    .trim();
-
-  const parsed = parseScript(text);
   return {
-    title: parsed.title,
-    body: parsed.body,
+    title: parsed.title.trim() || "ききながしニュース",
+    body: parsed.body.trim(),
     sources: items.map((it) => ({
       title: it.title,
       link: it.link,
@@ -76,10 +75,67 @@ TITLE: <番組タイトル 20文字以内>
   };
 }
 
-function parseScript(text: string): { title: string; body: string } {
-  const titleMatch = text.match(/^TITLE:\s*(.+)$/m);
-  const title = titleMatch ? titleMatch[1].trim() : "ききながしニュース";
-  const sepIdx = text.indexOf("---");
-  const body = sepIdx >= 0 ? text.slice(sepIdx + 3).trim() : text;
-  return { title, body };
+async function callAnthropic(
+  userPrompt: string,
+): Promise<{ title: string; body: string }> {
+  const env = getEnv();
+  const client = new Anthropic();
+  const res = await client.messages.create({
+    model: env.ANTHROPIC_MODEL,
+    max_tokens: 1500,
+    system: [
+      {
+        type: "text",
+        text: SYSTEM_PROMPT,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    tools: [
+      {
+        name: "submit_script",
+        description: "完成した番組原稿を提出する",
+        input_schema: SCRIPT_SCHEMA,
+      },
+    ],
+    tool_choice: { type: "tool", name: "submit_script" },
+    messages: [{ role: "user", content: userPrompt }],
+  });
+
+  const toolUse = res.content.find(
+    (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+  );
+  if (!toolUse) {
+    throw new Error("Anthropic から tool_use 応答が返ってこなかった");
+  }
+  return toolUse.input as { title: string; body: string };
+}
+
+async function callOllama(
+  userPrompt: string,
+): Promise<{ title: string; body: string }> {
+  const env = getEnv();
+  const res = await fetch(`${env.OLLAMA_URL}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: env.OLLAMA_MODEL,
+      stream: false,
+      format: SCRIPT_SCHEMA,
+      options: { temperature: 0.7 },
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`Ollama chat failed: ${res.status} ${await res.text()}`);
+  }
+  const data = (await res.json()) as { message?: { content?: string } };
+  const content = data.message?.content ?? "";
+  try {
+    return JSON.parse(content) as { title: string; body: string };
+  } catch {
+    throw new Error(`Ollama JSON parse failed: ${content.slice(0, 200)}`);
+  }
 }

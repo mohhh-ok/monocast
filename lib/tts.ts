@@ -2,9 +2,7 @@ import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-
-const VOICEVOX_URL = process.env.VOICEVOX_URL || "http://localhost:50021";
-const SPEAKER = Number(process.env.VOICEVOX_SPEAKER || "13"); // 13 = 青山龍星 ノーマル
+import { getEnv } from "./env";
 
 /** 原稿を段落単位に分割（短すぎる行は前と結合） */
 function splitParagraphs(text: string): string[] {
@@ -28,6 +26,7 @@ async function synthOne(
   speaker: number,
   trailingSilenceSec: number,
 ): Promise<Buffer> {
+  const { VOICEVOX_URL } = getEnv();
   const qRes = await fetch(
     `${VOICEVOX_URL}/audio_query?text=${encodeURIComponent(text)}&speaker=${speaker}`,
     { method: "POST" },
@@ -84,7 +83,7 @@ export async function synthesizeToMp3(
     for (let i = 0; i < paragraphs.length; i++) {
       const isLast = i === paragraphs.length - 1;
       const trailing = isLast ? 0 : 0.9; // 話題の間に約0.9秒の無音
-      const wav = await synthOne(paragraphs[i], SPEAKER, trailing);
+      const wav = await synthOne(paragraphs[i], getEnv().VOICEVOX_SPEAKER, trailing);
       const p = path.join(work, `seg-${String(i).padStart(3, "0")}.wav`);
       await fs.writeFile(p, wav);
       wavPaths.push(p);

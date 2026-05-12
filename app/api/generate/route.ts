@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { produceProgram } from "@/lib/produce";
+import { getEnv } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -13,9 +14,10 @@ export async function POST() {
       { status: 202 },
     );
   }
+  const { LLM_PROVIDER } = getEnv();
   const task = (async () => {
     try {
-      const program = await produceProgram();
+      const program = await produceProgram(LLM_PROVIDER);
       return program;
     } finally {
       inFlight = null;

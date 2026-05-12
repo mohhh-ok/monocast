@@ -1,11 +1,11 @@
 # monocast — ひとり用ききながしラジオ
 
-Claude Haiku 4.5 で台本を書き、VOICEVOX で音声化する、ローカル完結・自分専用のニュースききながしラジオ。音楽は流さず、情報のトーク主体。私的使用の範囲で動かす前提（公衆送信はしない）。
+Claude Haiku 4.5 もしくはローカル LLM (Ollama) で台本を書き、VOICEVOX で音声化する、ローカル完結・自分専用のニュースききながしラジオ。音楽は流さず、情報のトーク主体。私的使用の範囲で動かす前提（公衆送信はしない）。
 
 ```
-RSS (NHK / はてブ Tech) → Haiku 4.5 で台本 → VOICEVOX で合成 → ブラウザでキュー再生
-                                                              ↑
-                                  キューが減ると自動補充
+RSS (NHK / はてブ Tech) → LLM で台本 → VOICEVOX で合成 → ブラウザでキュー再生
+                                                       ↑
+                              キューが減ると自動補充
 ```
 
 ## 設計方針 — なぜ 1 人ナレーション・音楽なしなのか
@@ -36,21 +36,51 @@ monocast はこの「うざさ」を意図的に避ける方向で作られて�
 - Node.js 20+
 - ffmpeg (`brew install ffmpeg`)
 - VOICEVOX エンジン (デフォルト `http://localhost:50021` で起動)
-- Anthropic API キー
+- Anthropic API キー **または** Ollama (ローカル LLM)
 
 ## セットアップ
 
 ```bash
 npm install
 cp .env.local.example .env.local
-# .env.local を編集して ANTHROPIC_API_KEY を入れる
+# .env.local を編集して LLM_PROVIDER と必要な設定を入れる
+```
+
+### LLM プロバイダ
+
+`LLM_PROVIDER` で切替（既定 `anthropic`）。両プロバイダとも JSON Schema で `{title, body}` を構造化出力させているので、フォーマット崩れは起きない。
+
+#### Anthropic (デフォルト)
+
+`.env.local` に `ANTHROPIC_API_KEY` を入れるだけ。モデルは `ANTHROPIC_MODEL` で変更可（既定 `claude-haiku-4-5`）。
+
+#### Ollama (ローカル、無料)
+
+[Ollama](https://ollama.com/) をインストールしてモデルを落としておく:
+
+```bash
+brew install ollama
+ollama serve &
+ollama pull qwen2.5:7b-instruct     # 日本語＋構造化出力に強い既定モデル
+# 余裕があれば qwen2.5:14b-instruct / gemma3:12b なども試す
+```
+
+`.env.local`:
+
+```bash
+LLM_PROVIDER=ollama
+OLLAMA_MODEL=qwen2.5:7b-instruct
 ```
 
 ### 環境変数
 
 | 変数 | デフォルト | 説明 |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | (必須) | Claude API キー |
+| `LLM_PROVIDER` | `anthropic` | `anthropic` か `ollama` |
+| `ANTHROPIC_API_KEY` | (anthropic 時必須) | Claude API キー |
+| `ANTHROPIC_MODEL` | `claude-haiku-4-5` | Anthropic モデル ID |
+| `OLLAMA_URL` | `http://localhost:11434` | Ollama エンドポイント |
+| `OLLAMA_MODEL` | `qwen2.5:7b-instruct` | Ollama モデル名 |
 | `VOICEVOX_URL` | `http://localhost:50021` | VOICEVOX エンジン |
 | `VOICEVOX_SPEAKER` | `13` (青山龍星 ノーマル) | 話者 ID。`/speakers` で確認できる |
 
