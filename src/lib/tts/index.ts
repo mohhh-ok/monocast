@@ -104,11 +104,14 @@ async function pickAdapter(): Promise<TtsAdapter> {
 export async function synthesizeToMp3(
   scriptBody: string,
   outPath: string,
+  opts: { logTag?: string } = {},
 ): Promise<{ durationSec: number }> {
+  const tag = opts.logTag ?? "tts";
   const paragraphs = splitParagraphs(scriptBody);
   if (paragraphs.length === 0) throw new Error("空の原稿です");
 
   const adapter = await pickAdapter();
+  log.info(tag, `TTS=${adapter.name} 段落数=${paragraphs.length}`);
   const work = await fs.mkdtemp(path.join(tmpdir(), "airadio-"));
   try {
     const wavPaths: string[] = [];
@@ -116,11 +119,17 @@ export async function synthesizeToMp3(
       const isLast = i === paragraphs.length - 1;
       // 話題の間に約0.9秒の無音
       const trailingSilenceSec = isLast ? 0 : 0.9;
+      const tSeg = Date.now();
       const wav = await adapter.synthesize(paragraphs[i], { trailingSilenceSec });
+      log.info(
+        tag,
+        `  段落 ${i + 1}/${paragraphs.length} 合成 ${paragraphs[i].length}字 (${Date.now() - tSeg}ms)`,
+      );
       const p = path.join(work, `seg-${String(i).padStart(3, "0")}.wav`);
       await fs.writeFile(p, wav);
       wavPaths.push(p);
     }
+    log.info(tag, "ffmpeg で結合中...");
 
     const listPath = path.join(work, "list.txt");
     await fs.writeFile(

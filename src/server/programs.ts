@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { pickAdapter } from "@/lib/llm";
+import { log } from "@/lib/log";
 import { produceProgram } from "@/lib/produce";
 import { listPrograms, removeProgram, type Program } from "@/lib/queue";
 
@@ -29,10 +30,10 @@ export const generateProgramFn = createServerFn({ method: "POST" }).handler(
     try {
       return await task;
     } catch (err) {
-      return {
-        status: "error",
-        message: err instanceof Error ? err.message : String(err),
-      };
+      const message = err instanceof Error ? err.message : String(err);
+      log.error("produce", `失敗: ${message}`);
+      if (err instanceof Error && err.stack) log.error("produce", err.stack);
+      return { status: "error", message };
     }
   },
 );
