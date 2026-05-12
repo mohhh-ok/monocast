@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { dismissProgram, generateProgram } from "./actions";
 
 type Program = {
@@ -84,7 +85,7 @@ export default function Page() {
         gap: 32,
       }}
     >
-      <header style={{ textAlign: "center" }}>
+      <header style={{ textAlign: "center", position: "relative", width: "min(640px, 100%)" }}>
         <div
           style={{
             fontSize: 12,
@@ -98,6 +99,21 @@ export default function Page() {
         <h1 style={{ fontSize: 22, fontWeight: 500, color: "#cbd2ee" }}>
           ひとりのための、ききながし
         </h1>
+        <Link
+          href="/settings"
+          aria-label="設定"
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            fontSize: 18,
+            color: "#8a93b8",
+            textDecoration: "none",
+            padding: 4,
+          }}
+        >
+          ⚙
+        </Link>
       </header>
 
       <section

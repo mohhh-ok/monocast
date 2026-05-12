@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { getEnv } from "./env";
+import { getConfig } from "@/config";
 
 /** 原稿を段落単位に分割（短すぎる行は前と結合） */
 function splitParagraphs(text: string): string[] {
@@ -23,12 +23,12 @@ function splitParagraphs(text: string): string[] {
 
 async function synthOne(
   text: string,
+  voicevoxUrl: string,
   speaker: number,
   trailingSilenceSec: number,
 ): Promise<Buffer> {
-  const { VOICEVOX_URL } = getEnv();
   const qRes = await fetch(
-    `${VOICEVOX_URL}/audio_query?text=${encodeURIComponent(text)}&speaker=${speaker}`,
+    `${voicevoxUrl}/audio_query?text=${encodeURIComponent(text)}&speaker=${speaker}`,
     { method: "POST" },
   );
   if (!qRes.ok) {
@@ -42,7 +42,7 @@ async function synthOne(
     query.postPhonemeLength = trailingSilenceSec;
   }
 
-  const sRes = await fetch(`${VOICEVOX_URL}/synthesis?speaker=${speaker}`, {
+  const sRes = await fetch(`${voicevoxUrl}/synthesis?speaker=${speaker}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "audio/wav" },
     body: JSON.stringify(query),
@@ -77,13 +77,19 @@ export async function synthesizeToMp3(
   const paragraphs = splitParagraphs(scriptBody);
   if (paragraphs.length === 0) throw new Error("空の原稿です");
 
+  const cfg = await getConfig();
   const work = await fs.mkdtemp(path.join(tmpdir(), "airadio-"));
   try {
     const wavPaths: string[] = [];
     for (let i = 0; i < paragraphs.length; i++) {
       const isLast = i === paragraphs.length - 1;
       const trailing = isLast ? 0 : 0.9; // 話題の間に約0.9秒の無音
-      const wav = await synthOne(paragraphs[i], getEnv().VOICEVOX_SPEAKER, trailing);
+      const wav = await synthOne(
+        paragraphs[i],
+        cfg.voicevoxUrl,
+        cfg.voicevoxSpeaker,
+        trailing,
+      );
       const p = path.join(work, `seg-${String(i).padStart(3, "0")}.wav`);
       await fs.writeFile(p, wav);
       wavPaths.push(p);

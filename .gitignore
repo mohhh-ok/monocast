@@ -3,6 +3,7 @@ node_modules
 .env
 .env.local
 data/queue.json
+data/config.json
 public/audio/*.mp3
 public/audio/*.wav
 .DS_Store

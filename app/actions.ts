@@ -2,7 +2,7 @@
 
 import { produceProgram } from "@/lib/produce";
 import { removeProgram, type Program } from "@/lib/queue";
-import { getEnv } from "@/lib/env";
+import { getConfig } from "@/config";
 
 let inFlight: Promise<Program> | null = null;
 
@@ -14,8 +14,8 @@ export type GenerateResult =
 export async function generateProgram(): Promise<GenerateResult> {
   if (inFlight) return { status: "already-running" };
 
-  const { LLM_PROVIDER } = getEnv();
-  const task = produceProgram(LLM_PROVIDER).finally(() => {
+  const { llmProvider } = await getConfig();
+  const task = produceProgram(llmProvider).finally(() => {
     inFlight = null;
   });
   inFlight = task;

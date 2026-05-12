@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { NewsItem } from "./news";
-import { getEnv } from "./env";
+import { getConfig } from "@/config";
 
 export type LlmProvider = "anthropic" | "ollama";
 
@@ -79,10 +79,10 @@ JSON で {"title": "...", "body": "..."} の形で返してください。title 
 async function callAnthropic(
   userPrompt: string,
 ): Promise<{ title: string; body: string }> {
-  const env = getEnv();
+  const cfg = await getConfig();
   const client = new Anthropic();
   const res = await client.messages.create({
-    model: env.ANTHROPIC_MODEL,
+    model: cfg.anthropicModel,
     max_tokens: 1500,
     system: [
       {
@@ -114,12 +114,12 @@ async function callAnthropic(
 async function callOllama(
   userPrompt: string,
 ): Promise<{ title: string; body: string }> {
-  const env = getEnv();
-  const res = await fetch(`${env.OLLAMA_URL}/api/chat`, {
+  const cfg = await getConfig();
+  const res = await fetch(`${cfg.ollamaUrl}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: env.OLLAMA_MODEL,
+      model: cfg.ollamaModel,
       stream: false,
       format: SCRIPT_SCHEMA,
       options: { temperature: 0.7 },
