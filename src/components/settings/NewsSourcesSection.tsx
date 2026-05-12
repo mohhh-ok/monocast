@@ -28,10 +28,8 @@ export function NewsSourcesSection({
 }: Props) {
   const sourcesByCategory = useMemo(() => {
     const map: Record<SourceCategory, SourceOption[]> = {
-      japanese: [],
-      tech: [],
-      overseas: [],
-      hatena: [],
+      japan: [],
+      global: [],
     };
     for (const s of sources) {
       const cat = SourceCategorySchema.safeParse(s.category);

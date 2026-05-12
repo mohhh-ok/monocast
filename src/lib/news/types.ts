@@ -16,23 +16,16 @@ export type NewsAdapter = {
   fetch(limit: number): Promise<NewsItem[]>;
 };
 
-export const SOURCE_CATEGORIES = ["japanese", "tech", "overseas", "hatena"] as const;
+export const SOURCE_CATEGORIES = ["japan", "global"] as const;
 export const SourceCategorySchema = z.enum(SOURCE_CATEGORIES);
 export type SourceCategory = z.infer<typeof SourceCategorySchema>;
 
 export const CATEGORY_LABELS: Record<SourceCategory, string> = {
-  japanese: "日本語ニュース",
-  tech: "テック",
-  overseas: "海外",
-  hatena: "はてブ",
+  japan: "日本",
+  global: "グローバル",
 };
 
-export const CATEGORY_ORDER: readonly SourceCategory[] = [
-  "japanese",
-  "tech",
-  "overseas",
-  "hatena",
-];
+export const CATEGORY_ORDER: readonly SourceCategory[] = ["japan", "global"];
 
 export const SourceOptionSchema = z.object({
   id: z.string().min(1),

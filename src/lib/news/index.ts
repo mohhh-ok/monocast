@@ -13,31 +13,29 @@ export {
 export type { RssFeed } from "./adapters/rss";
 
 export const SOURCES: readonly RssFeed[] = [
-  // NHK
-  { id: "nhk-cat0", name: "NHK 主要", url: "https://www.nhk.or.jp/rss/news/cat0.xml", category: "japanese" },
-  { id: "nhk-cat1", name: "NHK 社会", url: "https://www.nhk.or.jp/rss/news/cat1.xml", category: "japanese" },
-  { id: "nhk-cat2", name: "NHK 文化", url: "https://www.nhk.or.jp/rss/news/cat2.xml", category: "japanese" },
-  { id: "nhk-cat3", name: "NHK 科学医療", url: "https://www.nhk.or.jp/rss/news/cat3.xml", category: "japanese" },
-  { id: "nhk-cat5", name: "NHK 経済", url: "https://www.nhk.or.jp/rss/news/cat5.xml", category: "japanese" },
-  { id: "nhk-cat6", name: "NHK 国際", url: "https://www.nhk.or.jp/rss/news/cat6.xml", category: "japanese" },
-  { id: "nhk-cat7", name: "NHK スポーツ", url: "https://www.nhk.or.jp/rss/news/cat7.xml", category: "japanese" },
-  { id: "bbc-ja", name: "BBC 日本語", url: "https://feeds.bbci.co.uk/japanese/rss.xml", category: "japanese" },
-  // テック
-  { id: "publickey", name: "Publickey", url: "https://www.publickey1.jp/atom.xml", category: "tech" },
-  { id: "itmedia", name: "ITmedia NEWS", url: "https://rss.itmedia.co.jp/rss/2.0/news.xml", category: "tech" },
-  { id: "gigazine", name: "GIGAZINE", url: "https://gigazine.net/news/rss_2.0/", category: "tech" },
-  { id: "zenn", name: "Zenn", url: "https://zenn.dev/feed", category: "tech" },
-  // 海外（英語 — LLM で和訳）
-  { id: "techcrunch", name: "TechCrunch", url: "https://techcrunch.com/feed/", category: "overseas" },
-  { id: "theverge", name: "The Verge", url: "https://www.theverge.com/rss/index.xml", category: "overseas" },
-  { id: "bbc", name: "BBC News", url: "https://feeds.bbci.co.uk/news/rss.xml", category: "overseas" },
-  { id: "hackernews", name: "Hacker News", url: "https://hnrss.org/frontpage", category: "overseas" },
-  // はてブ
-  { id: "hatena-all", name: "はてブ 総合", url: "https://b.hatena.ne.jp/hotentry.rss", category: "hatena" },
-  { id: "hatena-it", name: "はてブ Tech", url: "https://b.hatena.ne.jp/hotentry/it.rss", category: "hatena" },
-  { id: "hatena-life", name: "はてブ 暮らし", url: "https://b.hatena.ne.jp/hotentry/life.rss", category: "hatena" },
-  { id: "hatena-social", name: "はてブ 政治と経済", url: "https://b.hatena.ne.jp/hotentry/social.rss", category: "hatena" },
-  { id: "hatena-fun", name: "はてブ おもしろ", url: "https://b.hatena.ne.jp/hotentry/fun.rss", category: "hatena" },
+  // 日本
+  { id: "nhk-cat0", name: "NHK 主要", url: "https://www.nhk.or.jp/rss/news/cat0.xml", category: "japan" },
+  { id: "nhk-cat1", name: "NHK 社会", url: "https://www.nhk.or.jp/rss/news/cat1.xml", category: "japan" },
+  { id: "nhk-cat2", name: "NHK 文化", url: "https://www.nhk.or.jp/rss/news/cat2.xml", category: "japan" },
+  { id: "nhk-cat3", name: "NHK 科学医療", url: "https://www.nhk.or.jp/rss/news/cat3.xml", category: "japan" },
+  { id: "nhk-cat5", name: "NHK 経済", url: "https://www.nhk.or.jp/rss/news/cat5.xml", category: "japan" },
+  { id: "nhk-cat6", name: "NHK 国際", url: "https://www.nhk.or.jp/rss/news/cat6.xml", category: "japan" },
+  { id: "nhk-cat7", name: "NHK スポーツ", url: "https://www.nhk.or.jp/rss/news/cat7.xml", category: "japan" },
+  { id: "publickey", name: "Publickey", url: "https://www.publickey1.jp/atom.xml", category: "japan" },
+  { id: "itmedia", name: "ITmedia NEWS", url: "https://rss.itmedia.co.jp/rss/2.0/news.xml", category: "japan" },
+  { id: "gigazine", name: "GIGAZINE", url: "https://gigazine.net/news/rss_2.0/", category: "japan" },
+  { id: "zenn", name: "Zenn", url: "https://zenn.dev/feed", category: "japan" },
+  { id: "hatena-all", name: "はてブ 総合", url: "https://b.hatena.ne.jp/hotentry.rss", category: "japan" },
+  { id: "hatena-it", name: "はてブ Tech", url: "https://b.hatena.ne.jp/hotentry/it.rss", category: "japan" },
+  { id: "hatena-life", name: "はてブ 暮らし", url: "https://b.hatena.ne.jp/hotentry/life.rss", category: "japan" },
+  { id: "hatena-social", name: "はてブ 政治と経済", url: "https://b.hatena.ne.jp/hotentry/social.rss", category: "japan" },
+  { id: "hatena-fun", name: "はてブ おもしろ", url: "https://b.hatena.ne.jp/hotentry/fun.rss", category: "japan" },
+  // グローバル（英語 — LLM で和訳。BBC 日本語版は UK 発のため global 扱い）
+  { id: "bbc-ja", name: "BBC 日本語", url: "https://feeds.bbci.co.uk/japanese/rss.xml", category: "global" },
+  { id: "techcrunch", name: "TechCrunch", url: "https://techcrunch.com/feed/", category: "global" },
+  { id: "theverge", name: "The Verge", url: "https://www.theverge.com/rss/index.xml", category: "global" },
+  { id: "bbc", name: "BBC News", url: "https://feeds.bbci.co.uk/news/rss.xml", category: "global" },
+  { id: "hackernews", name: "Hacker News", url: "https://hnrss.org/frontpage", category: "global" },
 ];
 
 export function listSources(): readonly RssFeed[] {
