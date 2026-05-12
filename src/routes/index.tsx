@@ -7,6 +7,13 @@ import {
   listProgramsFn,
 } from "@/server/programs";
 import {
+  createProfileFn,
+  deleteProfileFn,
+  listProfilesFn,
+  setActiveProfileFn,
+  type ProfilesState,
+} from "@/server/settings";
+import {
   historyAtom,
   isPlayingAtom,
   playingProgramIdAtom,
@@ -35,6 +42,18 @@ function Home() {
   const [history, setHistory] = useAtom(historyAtom);
   const [playingId, setPlayingId] = useAtom(playingProgramIdAtom);
   const [segIndex, setSegIndex] = useAtom(segmentIndexAtom);
+  const [profiles, setProfiles] = useState<ProfilesState | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listProfilesFn().then((s) => {
+      if (!cancelled) setProfiles(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const dlg = dialogRef.current;
@@ -42,6 +61,82 @@ function Home() {
     if (showSettings && !dlg.open) dlg.showModal();
     if (!showSettings && dlg.open) dlg.close();
   }, [showSettings]);
+
+  const switchProfile = useCallback(
+    async (id: string) => {
+      if (!profiles || id === profiles.activeProfileId) return;
+      setProfileError(null);
+      const res = await setActiveProfileFn({ data: { id } });
+      if (res.status !== "ok") {
+        setProfileError(res.message);
+        return;
+      }
+      setProfiles(res.state);
+    },
+    [profiles],
+  );
+
+  const createNewProfile = useCallback(
+    async (fromActive: boolean) => {
+      if (!profiles) return;
+      const name = window.prompt(
+        fromActive ? "複製したプロファイルの名前" : "新しいプロファイルの名前",
+        "",
+      );
+      if (!name || !name.trim()) return;
+      setProfileError(null);
+      const res = await createProfileFn({
+        data: {
+          name: name.trim(),
+          fromId: fromActive ? profiles.activeProfileId : undefined,
+        },
+      });
+      if (res.status !== "ok") {
+        setProfileError(res.message);
+        return;
+      }
+      // 追加直後はそのまま active のまま据え置く（一覧だけ更新）。
+      // 必要なら作成したプロファイルへ切替する。
+      const created = res.state.profiles.find(
+        (p) =>
+          p.name === name.trim() &&
+          !profiles.profiles.some((existing) => existing.id === p.id),
+      );
+      if (created) {
+        const sw = await setActiveProfileFn({ data: { id: created.id } });
+        if (sw.status === "ok") {
+          setProfiles(sw.state);
+          return;
+        }
+        setProfileError(sw.message);
+      }
+      setProfiles(res.state);
+    },
+    [profiles],
+  );
+
+  const deleteActiveProfile = useCallback(async () => {
+    if (!profiles) return;
+    if (profiles.profiles.length <= 1) return;
+    const current = profiles.profiles.find(
+      (p) => p.id === profiles.activeProfileId,
+    );
+    if (
+      !window.confirm(
+        `プロファイル「${current?.name ?? profiles.activeProfileId}」を削除します。よろしいですか？`,
+      )
+    )
+      return;
+    setProfileError(null);
+    const res = await deleteProfileFn({
+      data: { id: profiles.activeProfileId },
+    });
+    if (res.status !== "ok") {
+      setProfileError(res.message);
+      return;
+    }
+    setProfiles(res.state);
+  }, [profiles]);
 
   const refresh = useCallback(async () => {
     const data = await listProgramsFn();
@@ -148,7 +243,7 @@ function Home() {
         gap: 32,
       }}
     >
-      <header style={{ textAlign: "center", position: "relative", width: "min(640px, 100%)" }}>
+      <header style={{ textAlign: "center", width: "min(640px, 100%)" }}>
         <div
           style={{
             fontSize: 12,
@@ -162,26 +257,95 @@ function Home() {
         <h1 style={{ fontSize: 22, fontWeight: 500, color: "#cbd2ee" }}>
           ひとりのための、ききながし
         </h1>
-        <button
-          type="button"
-          onClick={() => setShowSettings(true)}
-          aria-label="設定"
+      </header>
+
+      {profiles && (
+        <section
           style={{
-            position: "absolute",
-            top: -4,
-            right: 0,
-            fontSize: 32,
-            lineHeight: 1,
-            color: "#8a93b8",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            padding: 4,
+            width: "min(640px, 100%)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
           }}
         >
-          ⚙
-        </button>
-      </header>
+          <span
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.3em",
+              color: "#8a93b8",
+            }}
+          >
+            PROFILE
+          </span>
+          <select
+            value={profiles.activeProfileId}
+            onChange={(e) => {
+              void switchProfile(e.target.value);
+            }}
+            style={{
+              flex: "1 1 200px",
+              padding: "8px 12px",
+              background: "rgba(0,0,0,0.25)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 8,
+              color: "#e6e9f5",
+              fontSize: 14,
+              fontFamily: "inherit",
+            }}
+          >
+            {profiles.profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => void createNewProfile(false)}
+            style={profileBtnStyle()}
+          >
+            新規
+          </button>
+          <button
+            type="button"
+            onClick={() => void createNewProfile(true)}
+            style={profileBtnStyle()}
+          >
+            複製
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            style={profileBtnStyle()}
+          >
+            編集
+          </button>
+          <button
+            type="button"
+            onClick={() => void deleteActiveProfile()}
+            disabled={profiles.profiles.length <= 1}
+            style={{
+              ...profileBtnStyle(),
+              opacity: profiles.profiles.length <= 1 ? 0.4 : 1,
+            }}
+          >
+            削除
+          </button>
+          {profileError && (
+            <div
+              style={{
+                width: "100%",
+                fontSize: 12,
+                color: "#ffb8c0",
+                marginTop: 4,
+              }}
+            >
+              {profileError}
+            </div>
+          )}
+        </section>
+      )}
 
       <section
         style={{
@@ -470,7 +634,12 @@ function Home() {
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <SettingsPanel onClose={() => setShowSettings(false)} />
+          {showSettings && (
+            <SettingsPanel
+              onClose={() => setShowSettings(false)}
+              onProfilesChange={setProfiles}
+            />
+          )}
         </div>
       </dialog>
 
@@ -498,5 +667,18 @@ function btnStyle(disabled = false): React.CSSProperties {
     fontSize: 13,
     opacity: disabled ? 0.5 : 1,
     transition: "background 0.15s",
+  };
+}
+
+function profileBtnStyle(): React.CSSProperties {
+  return {
+    padding: "8px 12px",
+    borderRadius: 8,
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    color: "#e6e9f5",
+    fontSize: 12,
+    whiteSpace: "nowrap",
+    cursor: "pointer",
   };
 }

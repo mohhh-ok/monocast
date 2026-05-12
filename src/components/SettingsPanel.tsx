@@ -8,17 +8,13 @@ import {
   type SourceCategory,
 } from "@/lib/news/types";
 import {
-  createProfileFn,
-  deleteProfileFn,
   fetchAivisSpeakersFn,
   fetchSayVoicesFn,
   fetchSpeakersFn,
   listProfilesFn,
   listSourcesFn,
   loadConfigFn,
-  loadProfileConfigFn,
   renameProfileFn,
-  setActiveProfileFn,
   updateConfigFn,
   type ProfilesState,
   type SayVoiceOption,
@@ -34,21 +30,22 @@ type Status =
 
 type Props = {
   onClose?: () => void;
+  onProfilesChange?: (state: ProfilesState) => void;
 };
 
 const AUTOSAVE_DEBOUNCE_MS = 400;
 
-export function SettingsPanel({ onClose }: Props) {
+export function SettingsPanel({ onClose, onProfilesChange }: Props) {
   const [cfg, setCfg] = useState<Config | null>(null);
-  const [profiles, setProfiles] = useState<ProfilesState | null>(null);
+  const [profileName, setProfileName] = useState<string>("");
   const [speakers, setSpeakers] = useState<SpeakerOption[]>([]);
   const [aivisSpeakers, setAivisSpeakers] = useState<SpeakerOption[]>([]);
   const [sayVoices, setSayVoices] = useState<SayVoiceOption[]>([]);
   const [sources, setSources] = useState<SourceOption[]>([]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
-  // 編集中プロファイル（保存先）の id。profiles.activeProfileId と通常一致するが、
-  // 切替直後にロード完了するまでズレるので別管理。
+  // 編集中プロファイル（保存先）の id。表に出した切替 UI から書き換わる可能性に備えて
+  // マウント時にスナップショットを取り、autosave はこの id 宛で保存する。
   const editingProfileIdRef = useRef<string | null>(null);
   // debounce タイマーと、進行中の保存 Promise（切替時に await するため）。
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -68,8 +65,9 @@ export function SettingsPanel({ onClose }: Props) {
     ]).then(([c, pf, sp, asp, sv, src]) => {
       if (cancelled) return;
       setCfg(c);
-      setProfiles(pf);
       editingProfileIdRef.current = pf.activeProfileId;
+      const active = pf.profiles.find((p) => p.id === pf.activeProfileId);
+      setProfileName(active?.name ?? "");
       setSpeakers(sp);
       setAivisSpeakers(asp);
       setSayVoices(sv);
@@ -201,103 +199,6 @@ export function SettingsPanel({ onClose }: Props) {
   const selectLlm = (id: LlmId) => update("selectedLlm", id);
   const selectTts = (id: TtsId) => update("selectedTts", id);
 
-  const switchProfile = async (id: string) => {
-    if (!profiles || id === profiles.activeProfileId) return;
-    // 進行中の保存・debounce を全部編集中プロファイルへ流し切ってから切り替える。
-    await flushSave();
-    editingProfileIdRef.current = id;
-    const res = await setActiveProfileFn({ data: { id } });
-    if (res.status !== "ok") {
-      setStatus({ kind: "error", message: res.message });
-      return;
-    }
-    setProfiles(res.state);
-    const nextCfg = await loadProfileConfigFn({ data: { id } });
-    if (nextCfg) setCfg(nextCfg);
-  };
-
-  const refreshProfiles = (state: ProfilesState) => {
-    setProfiles(state);
-  };
-
-  const createNewProfile = async (fromActive: boolean) => {
-    if (!profiles) return;
-    const name = window.prompt(
-      fromActive ? "複製したプロファイルの名前" : "新しいプロファイルの名前",
-      "",
-    );
-    if (!name || !name.trim()) return;
-    await flushSave();
-    const res = await createProfileFn({
-      data: {
-        name: name.trim(),
-        fromId: fromActive ? profiles.activeProfileId : undefined,
-      },
-    });
-    if (res.status !== "ok") {
-      setStatus({ kind: "error", message: res.message });
-      return;
-    }
-    refreshProfiles(res.state);
-    // 作成したプロファイルへすぐ切り替える（追加→ active が直感的）。
-    const created = res.state.profiles.find(
-      (p) =>
-        p.name === name.trim() &&
-        !profiles.profiles.some((existing) => existing.id === p.id),
-    );
-    if (created) await switchProfile(created.id);
-  };
-
-  const renameActiveProfile = async () => {
-    if (!profiles) return;
-    const current = profiles.profiles.find(
-      (p) => p.id === profiles.activeProfileId,
-    );
-    const name = window.prompt("プロファイル名を変更", current?.name ?? "");
-    if (!name || !name.trim() || name.trim() === current?.name) return;
-    const res = await renameProfileFn({
-      data: { id: profiles.activeProfileId, name: name.trim() },
-    });
-    if (res.status !== "ok") {
-      setStatus({ kind: "error", message: res.message });
-      return;
-    }
-    refreshProfiles(res.state);
-  };
-
-  const deleteActiveProfile = async () => {
-    if (!profiles) return;
-    if (profiles.profiles.length <= 1) return;
-    const current = profiles.profiles.find(
-      (p) => p.id === profiles.activeProfileId,
-    );
-    if (
-      !window.confirm(
-        `プロファイル「${current?.name ?? profiles.activeProfileId}」を削除します。よろしいですか？`,
-      )
-    )
-      return;
-    // pending な編集は捨てる（消すプロファイル宛なので意味がない）。
-    pendingPatchRef.current = {};
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-    const res = await deleteProfileFn({
-      data: { id: profiles.activeProfileId },
-    });
-    if (res.status !== "ok") {
-      setStatus({ kind: "error", message: res.message });
-      return;
-    }
-    refreshProfiles(res.state);
-    editingProfileIdRef.current = res.state.activeProfileId;
-    const nextCfg = await loadProfileConfigFn({
-      data: { id: res.state.activeProfileId },
-    });
-    if (nextCfg) setCfg(nextCfg);
-  };
-
   const refreshSpeakers = async () => {
     const list = await fetchSpeakersFn();
     setSpeakers(list);
@@ -311,6 +212,21 @@ export function SettingsPanel({ onClose }: Props) {
   const refreshSayVoices = async () => {
     const list = await fetchSayVoicesFn();
     setSayVoices(list);
+  };
+
+  const renameCurrentProfile = async () => {
+    const id = editingProfileIdRef.current;
+    if (!id) return;
+    const name = window.prompt("プロファイル名を変更", profileName);
+    if (!name || !name.trim() || name.trim() === profileName) return;
+    const res = await renameProfileFn({ data: { id, name: name.trim() } });
+    if (res.status !== "ok") {
+      setStatus({ kind: "error", message: res.message });
+      return;
+    }
+    const active = res.state.profiles.find((p) => p.id === id);
+    setProfileName(active?.name ?? name.trim());
+    onProfilesChange?.(res.state);
   };
 
   return (
@@ -332,63 +248,103 @@ export function SettingsPanel({ onClose }: Props) {
         )}
       </header>
 
-      {profiles && (
-        <section style={cardStyle}>
-          <h2 style={sectionStyle}>プロファイル</h2>
-          <Field
-            label="使用中のプロファイル"
-            hint="フィールドを編集すると自動で保存されます。プロファイルを切り替えると、設定全体が入れ替わります。"
+      <section style={cardStyle}>
+        <h2 style={sectionStyle}>プロファイル</h2>
+        <Field
+          label="編集中のプロファイル"
+          hint="各フィールドは自動で保存されます。"
+        >
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span
+              style={{
+                flex: "1 1 200px",
+                padding: "10px 12px",
+                background: "rgba(0,0,0,0.25)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 8,
+                color: "#e6e9f5",
+                fontSize: 14,
+              }}
+            >
+              {profileName || "(無名)"}
+            </span>
+            <button
+              type="button"
+              onClick={() => void renameCurrentProfile()}
+              style={btnStyle()}
+            >
+              名前を変更
+            </button>
+          </div>
+        </Field>
+      </section>
+
+      <section style={cardStyle}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 18,
+          }}
+        >
+          <h2 style={{ ...sectionStyle, marginBottom: 0 }}>ニュースソース</h2>
+          <button
+            type="button"
+            onClick={resetSources}
+            disabled={isAllEnabled}
+            style={{ ...btnStyle(), opacity: isAllEnabled ? 0.4 : 1 }}
           >
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <select
-                value={profiles.activeProfileId}
-                onChange={(e) => {
-                  void switchProfile(e.target.value);
-                }}
-                style={{ ...inputStyle, flex: "1 1 200px" }}
-              >
-                {profiles.profiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
+            全件に戻す
+          </button>
+        </div>
+
+        {CATEGORY_ORDER.map((cat) => {
+          const list = sourcesByCategory[cat];
+          if (list.length === 0) return null;
+          const onCount = list.filter((s) => enabledSet.has(s.id)).length;
+          const allOn = onCount === list.length;
+          const someOn = onCount > 0 && onCount < list.length;
+          return (
+            <div key={cat} style={{ marginBottom: 18 }}>
+              <label style={categoryLabelStyle}>
+                <input
+                  type="checkbox"
+                  checked={allOn}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someOn;
+                  }}
+                  onChange={() => toggleCategory(cat)}
+                />
+                <span style={{ color: "#cbd2ee", fontSize: 14 }}>
+                  {CATEGORY_LABELS[cat]}
+                </span>
+                <span style={{ color: "#5a6188", fontSize: 12 }}>
+                  ({onCount}/{list.length})
+                </span>
+              </label>
+              <div style={sourceGroupStyle}>
+                {list.map((s) => (
+                  <label key={s.id} style={sourceItemStyle}>
+                    <input
+                      type="checkbox"
+                      checked={enabledSet.has(s.id)}
+                      onChange={() => toggleSource(s.id)}
+                    />
+                    <span style={{ fontSize: 13, color: "#cbd2ee" }}>{s.name}</span>
+                  </label>
                 ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => void createNewProfile(false)}
-                style={btnStyle()}
-              >
-                新規
-              </button>
-              <button
-                type="button"
-                onClick={() => void createNewProfile(true)}
-                style={btnStyle()}
-              >
-                複製
-              </button>
-              <button
-                type="button"
-                onClick={() => void renameActiveProfile()}
-                style={btnStyle()}
-              >
-                リネーム
-              </button>
-              <button
-                type="button"
-                onClick={() => void deleteActiveProfile()}
-                disabled={profiles.profiles.length <= 1}
-                style={{
-                  ...btnStyle(),
-                  opacity: profiles.profiles.length <= 1 ? 0.4 : 1,
-                }}
-              >
-                削除
-              </button>
+              </div>
             </div>
-          </Field>
-        </section>
-      )}
+          );
+        })}
+
+        {enabledSet.size === 0 && (
+          <div style={{ fontSize: 12, color: "#ffb8c0", marginTop: 8 }}>
+            すべてのソースが OFF です。番組生成は空結果となり、次の番組は作られません。
+          </div>
+        )}
+      </section>
 
       <section style={cardStyle}>
         <h2 style={sectionStyle}>LLM</h2>
@@ -801,73 +757,6 @@ export function SettingsPanel({ onClose }: Props) {
             style={inputStyle}
           />
         </Field>
-      </section>
-
-      <section style={cardStyle}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 18,
-          }}
-        >
-          <h2 style={{ ...sectionStyle, marginBottom: 0 }}>ニュースソース</h2>
-          <button
-            type="button"
-            onClick={resetSources}
-            disabled={isAllEnabled}
-            style={{ ...btnStyle(), opacity: isAllEnabled ? 0.4 : 1 }}
-          >
-            全件に戻す
-          </button>
-        </div>
-
-        {CATEGORY_ORDER.map((cat) => {
-          const list = sourcesByCategory[cat];
-          if (list.length === 0) return null;
-          const onCount = list.filter((s) => enabledSet.has(s.id)).length;
-          const allOn = onCount === list.length;
-          const someOn = onCount > 0 && onCount < list.length;
-          return (
-            <div key={cat} style={{ marginBottom: 18 }}>
-              <label style={categoryLabelStyle}>
-                <input
-                  type="checkbox"
-                  checked={allOn}
-                  ref={(el) => {
-                    if (el) el.indeterminate = someOn;
-                  }}
-                  onChange={() => toggleCategory(cat)}
-                />
-                <span style={{ color: "#cbd2ee", fontSize: 14 }}>
-                  {CATEGORY_LABELS[cat]}
-                </span>
-                <span style={{ color: "#5a6188", fontSize: 12 }}>
-                  ({onCount}/{list.length})
-                </span>
-              </label>
-              <div style={sourceGroupStyle}>
-                {list.map((s) => (
-                  <label key={s.id} style={sourceItemStyle}>
-                    <input
-                      type="checkbox"
-                      checked={enabledSet.has(s.id)}
-                      onChange={() => toggleSource(s.id)}
-                    />
-                    <span style={{ fontSize: 13, color: "#cbd2ee" }}>{s.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-
-        {enabledSet.size === 0 && (
-          <div style={{ fontSize: 12, color: "#ffb8c0", marginTop: 8 }}>
-            すべてのソースが OFF です。番組生成は空結果となり、次の番組は作られません。
-          </div>
-        )}
       </section>
 
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>

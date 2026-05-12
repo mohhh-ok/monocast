@@ -51,7 +51,7 @@ cp .env.local.example .env.local
 # 使うクラウド LLM / TTS の API キーだけ .env.local に入れる
 ```
 
-`.env.local` で扱うのは API キーのみ。プロバイダ切替・モデル・URL・話者などの設定は **起動後に画面右上の ⚙ から** 行い、`data/config.json` に保存される。
+`.env.local` で扱うのは API キーのみ。プロバイダ切替・モデル・URL・話者などの設定は **起動後にトップ画面の PROFILE バーの「編集」から** 開く設定ダイアログで行い、プロファイル単位で `data/profiles/<id>.json` に保存される。
 
 ### 利用可能な API キー（必要なものだけでよい）
 
@@ -128,7 +128,8 @@ npm run dev
 
 | パス | 内容 |
 | --- | --- |
-| `data/config.json` | 設定（⚙ から保存される） |
+| `data/config.json` | アクティブプロファイル ID を保持 |
+| `data/profiles/<id>.json` | プロファイルごとの設定（編集ダイアログから自動保存） |
 | `data/queue.json` | 番組キューのメタデータ |
 | `data/rss-cache.sqlite` | RSS の 10 分キャッシュ |
 | `data/seen.sqlite` | 過去 14 日に読んだ URL |
