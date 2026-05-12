@@ -127,15 +127,32 @@ export async function synthesizeToMp3(
         if (i >= paragraphs.length) return;
         const trailingSilenceSec = 0.9;
         const tSeg = Date.now();
-        const wav = await adapter.synthesize(paragraphs[i], { trailingSilenceSec });
-        const p = path.join(work, `seg-${String(i).padStart(3, "0")}.wav`);
-        await fs.writeFile(p, wav);
-        wavPaths[i] = p;
-        done++;
-        log.info(
-          tag,
-          `  段落 ${i + 1}/${paragraphs.length} 合成 ${paragraphs[i].length}字 (${Date.now() - tSeg}ms) [${done}/${paragraphs.length}]`,
-        );
+        log.debug(tag, `段落 ${i + 1}/${paragraphs.length} 合成開始`, {
+          index: i,
+          total: paragraphs.length,
+          len: paragraphs[i].length,
+          head: paragraphs[i].slice(0, 40),
+        });
+        try {
+          const wav = await adapter.synthesize(paragraphs[i], { trailingSilenceSec });
+          const p = path.join(work, `seg-${String(i).padStart(3, "0")}.wav`);
+          await fs.writeFile(p, wav);
+          wavPaths[i] = p;
+          done++;
+          log.info(
+            tag,
+            `  段落 ${i + 1}/${paragraphs.length} 合成 ${paragraphs[i].length}字 (${Date.now() - tSeg}ms) [${done}/${paragraphs.length}]`,
+          );
+        } catch (err) {
+          log.error(tag, `段落 ${i + 1}/${paragraphs.length} 合成失敗`, {
+            index: i,
+            total: paragraphs.length,
+            len: paragraphs[i].length,
+            head: paragraphs[i].slice(0, 80),
+            elapsedMs: Date.now() - tSeg,
+          });
+          throw err;
+        }
       }
     };
     await Promise.all(Array.from({ length: concurrency }, worker));

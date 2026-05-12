@@ -15,3 +15,4 @@ public/audio/*.mp3
 public/audio/*.wav
 .DS_Store
 *.tsbuildinfo
+.logs/
