@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "issue-create": {
+      "source": "mohhh-ok/skills",
+      "sourceType": "github",
+      "skillPath": "skills/issue-create/SKILL.md",
+      "computedHash": "d0ef287c9cdfcd2ac44ece8e2c8f8364411b8868076bf4e59a3ce02e37424c65"
+    },
+    "issue-pick": {
+      "source": "mohhh-ok/skills",
+      "sourceType": "github",
+      "skillPath": "skills/issue-pick/SKILL.md",
+      "computedHash": "5af68efcfbafc08e903f6f2e2b9d32e62b94b1936919d69fd0999dbef029537d"
+    }
+  }
+}
