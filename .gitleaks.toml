@@ -1,0 +1,25 @@
+# gitleaks 設定 — monocast
+# デフォルトルール（OpenAI / Anthropic / AWS など主要プロバイダ網羅）を継承しつつ、
+# 本リポジトリの誤検知をすこしだけ許可リストに入れる。
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "リポジトリ全体の許可"
+paths = [
+  # サンプル env ファイル (sk-ant-xxxxxxxx のようなプレースホルダのみ)
+  '''\.env\.local\.example$''',
+  # 生成物 / 依存
+  '''^node_modules/''',
+  '''^\.next/''',
+  '''^public/audio/''',
+  '''^data/queue\.json$''',
+]
+
+# README などに「過去に書いたサンプル」を含めても止まらないように、
+# どこにあっても以下の文字列はリーク扱いしない
+regexes = [
+  '''sk-ant-xxxxxxxx''',
+  '''sk-ant-api03-xxxxxxxxxxxxxxxxxxxx''',
+]

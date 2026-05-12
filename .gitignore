@@ -1,0 +1,9 @@
+node_modules
+.next
+.env
+.env.local
+data/queue.json
+public/audio/*.mp3
+public/audio/*.wav
+.DS_Store
+*.tsbuildinfo

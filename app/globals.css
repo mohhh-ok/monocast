@@ -1,0 +1,39 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  min-height: 100vh;
+  background: radial-gradient(
+      ellipse at top,
+      #1d2540 0%,
+      #0c0f1c 60%,
+      #050710 100%
+    )
+    fixed;
+  color: #e6e9f5;
+  font-family:
+    "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", system-ui,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: 0.02em;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: inherit;
+}
+
+a {
+  color: #a3b8ff;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
