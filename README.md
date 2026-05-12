@@ -34,7 +34,6 @@ monocast はこの「うざさ」を意図的に避ける方向で作られて�
 ## 必要なもの
 
 - Node.js 22+
-- ffmpeg (`brew install ffmpeg`)
 - LLM プロバイダのいずれか
   - Anthropic API キー / OpenAI API キー / Google Gemini API キー
   - もしくは Ollama（ローカル LLM、無料）
@@ -131,7 +130,7 @@ npm run dev
 | `data/queue.json` | 番組キューのメタデータ |
 | `data/rss-cache.sqlite` | RSS の 10 分キャッシュ |
 | `data/seen.sqlite` | 過去 14 日に読んだ URL |
-| `public/audio/*.mp3` | 各番組の音声（再生終了で削除） |
+| `public/audio/<id>/seg-NNN.wav` | 各番組の段落音声（再生終了でディレクトリごと削除） |
 | `.logs/app.jsonl` | 詳細ログ（起動ごとにクリア） |
 
 ## 仕様ドキュメント

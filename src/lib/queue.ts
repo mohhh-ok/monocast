@@ -34,15 +34,24 @@ export async function addProgram(p: Program): Promise<void> {
   await save(s);
 }
 
+/** 指定 id の番組を patch で部分更新する。番組が存在しない場合は何もしない。 */
+export async function updateProgram(
+  id: string,
+  patch: Partial<Program>,
+): Promise<void> {
+  const s = await load();
+  const idx = s.programs.findIndex((x) => x.id === id);
+  if (idx < 0) return;
+  s.programs[idx] = { ...s.programs[idx], ...patch };
+  await save(s);
+}
+
 export async function removeProgram(id: string): Promise<void> {
   const s = await load();
-  const target = s.programs.find((x) => x.id === id);
   s.programs = s.programs.filter((x) => x.id !== id);
   await save(s);
-  if (target) {
-    const file = path.join(process.cwd(), "public", target.audioUrl);
-    await fs.unlink(file).catch(() => {});
-  }
+  const dir = path.join(process.cwd(), "public", "audio", id);
+  await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
 }
 
 export async function countPrograms(): Promise<number> {

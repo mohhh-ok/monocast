@@ -6,7 +6,12 @@ import {
   generateProgramFn,
   listProgramsFn,
 } from "@/server/programs";
-import { historyAtom } from "@/lib/atoms";
+import {
+  historyAtom,
+  isPlayingAtom,
+  playingProgramIdAtom,
+  segmentIndexAtom,
+} from "@/lib/atoms";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import type { Program } from "@/lib/queue.types";
 
@@ -23,11 +28,13 @@ function Home() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showScript, setShowScript] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlaying] = useAtom(isPlayingAtom);
   const [showSettings, setShowSettings] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const [history, setHistory] = useAtom(historyAtom);
+  const [playingId, setPlayingId] = useAtom(playingProgramIdAtom);
+  const [segIndex, setSegIndex] = useAtom(segmentIndexAtom);
 
   useEffect(() => {
     const dlg = dialogRef.current;
@@ -64,10 +71,15 @@ function Home() {
     }
   }, [generating, refresh]);
 
+  // どこかの番組が合成中（audioSegments < expectedSegmentCount）なら速めにポーリング
+  const anyStreaming = programs.some(
+    (p) => p.audioSegments.length < p.expectedSegmentCount,
+  );
   useEffect(() => {
-    const t = setInterval(refresh, 5000);
+    const interval = anyStreaming ? 1500 : 5000;
+    const t = setInterval(refresh, interval);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, [refresh, anyStreaming]);
 
   useEffect(() => {
     if (programs.length < MIN_QUEUE && !generating && !error) {
@@ -77,6 +89,15 @@ function Home() {
 
   const current = programs[0];
   const upcoming = programs.slice(1);
+
+  // 番組が切り替わったらセグメント位置を 0 に戻す
+  useEffect(() => {
+    const nextId = current?.id ?? null;
+    if (nextId !== playingId) {
+      setPlayingId(nextId);
+      setSegIndex(0);
+    }
+  }, [current?.id, playingId, setPlayingId, setSegIndex]);
 
   const archive = useCallback(
     (program: Program) => {
@@ -88,19 +109,33 @@ function Home() {
     [setHistory],
   );
 
+  const finishCurrent = useCallback(async () => {
+    if (!current) return;
+    archive(current);
+    setSegIndex(0);
+    await dismissProgramFn({ data: { id: current.id } });
+    await refresh();
+  }, [current, refresh, archive, setSegIndex]);
+
   const handleEnded = useCallback(async () => {
     if (!current) return;
-    archive(current);
-    await dismissProgramFn({ data: { id: current.id } });
-    await refresh();
-  }, [current, refresh, archive]);
+    const next = segIndex + 1;
+    if (next < current.expectedSegmentCount) {
+      // まだ番組は続く。次の URL が来てない可能性があるので即 refresh も投げる。
+      setSegIndex(next);
+      if (next >= current.audioSegments.length) {
+        refresh().catch(() => {});
+      }
+      return;
+    }
+    await finishCurrent();
+  }, [current, segIndex, setSegIndex, finishCurrent, refresh]);
 
   const skip = useCallback(async () => {
-    if (!current) return;
-    archive(current);
-    await dismissProgramFn({ data: { id: current.id } });
-    await refresh();
-  }, [current, refresh, archive]);
+    await finishCurrent();
+  }, [finishCurrent]);
+
+  const currentSegmentUrl = current?.audioSegments[segIndex]?.url;
 
   return (
     <main
@@ -201,16 +236,44 @@ function Home() {
               {current.llm?.label ?? "不明な LLM"}
             </div>
 
-            <audio
-              ref={audioRef}
-              src={current.audioUrl}
-              autoPlay
-              controls
-              onPlay={() => setPlaying(true)}
-              onPause={() => setPlaying(false)}
-              onEnded={handleEnded}
-              style={{ width: "100%" }}
-            />
+            {currentSegmentUrl ? (
+              <audio
+                ref={audioRef}
+                key={`${current.id}:${segIndex}:${currentSegmentUrl}`}
+                src={currentSegmentUrl}
+                autoPlay
+                controls
+                preload="auto"
+                onPlay={() => setPlaying(true)}
+                onPause={() => setPlaying(false)}
+                onEnded={handleEnded}
+                style={{ width: "100%" }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: "100%",
+                  padding: "16px 12px",
+                  borderRadius: 8,
+                  background: "rgba(255,255,255,0.04)",
+                  fontSize: 12,
+                  color: "#8a93b8",
+                  textAlign: "center",
+                }}
+              >
+                次の段落を準備しています...
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: "#5a6188", marginTop: 6 }}>
+              段落 {Math.min(segIndex + 1, current.expectedSegmentCount)} /{" "}
+              {current.expectedSegmentCount}
+              {current.audioSegments.length < current.expectedSegmentCount && (
+                <span style={{ marginLeft: 8, color: "#ff7a8a" }}>
+                  · 合成中 ({current.audioSegments.length}/
+                  {current.expectedSegmentCount})
+                </span>
+              )}
+            </div>
 
             <div
               style={{

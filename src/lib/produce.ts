@@ -4,9 +4,9 @@ import { getConfig } from "@/config";
 import type { LlmAdapter } from "./llm";
 import { log } from "./log";
 import { fetchNews } from "./news";
-import { addProgram, type Program } from "./queue";
+import { addProgram, removeProgram, updateProgram, type Program } from "./queue";
 import { generateProgramScript } from "./script";
-import { synthesizeToMp3 } from "./tts";
+import { synthesizeToSegments } from "./tts";
 
 const NEWS_ITEMS_PER_PROGRAM = 10;
 
@@ -90,24 +90,17 @@ export async function produceProgram(
     );
     log.debug(tag, "原稿プロファイル", profileScript(script.body));
 
-    const filename = `${id}.mp3`;
-    const outPath = path.join(process.cwd(), "public", "audio", filename);
+    const outDir = path.join(process.cwd(), "public", "audio", id);
     const tTts = Date.now();
-    log.info(tag, `音声合成開始 -> ${filename}`);
-    const { durationSec } = await synthesizeToMp3(script.body, outPath, {
-      logTag: tag,
-    });
-    log.info(
-      tag,
-      `音声完了 ${durationSec}s (${Date.now() - tTts}ms)`,
-    );
+    log.info(tag, `音声合成開始 -> audio/${id}/`);
 
     const program: Program = {
       id,
       title: script.title,
       body: script.body,
-      audioUrl: `/audio/${filename}`,
-      durationSec,
+      audioSegments: [],
+      expectedSegmentCount: 0,
+      durationSec: 0,
       createdAt: new Date().toISOString(),
       sources: script.sources,
       llm: {
@@ -116,7 +109,46 @@ export async function produceProgram(
         model: adapter.model,
       },
     };
-    await addProgram(program);
+
+    let enqueued = false;
+    try {
+      const { segments, totalDurationSec } = await synthesizeToSegments(
+        script.body,
+        outDir,
+        `/audio/${id}`,
+        {
+          logTag: tag,
+          onStart: async (total) => {
+            program.expectedSegmentCount = total;
+            await addProgram(program);
+            enqueued = true;
+            log.info(tag, `番組を仮 enqueue (段落数 ${total}, 合成は継続中)`);
+          },
+          onProgress: async (published) => {
+            const dur = Math.max(
+              1,
+              Math.round(published.reduce((a, s) => a + s.durationSec, 0)),
+            );
+            await updateProgram(id, {
+              audioSegments: published,
+              durationSec: dur,
+            });
+          },
+        },
+      );
+      log.info(
+        tag,
+        `音声完了 ${totalDurationSec}s seg=${segments.length} (${Date.now() - tTts}ms)`,
+      );
+      program.audioSegments = segments;
+      program.durationSec = totalDurationSec;
+    } catch (err) {
+      if (enqueued) {
+        await removeProgram(id).catch(() => {});
+      }
+      throw err;
+    }
+
     const { markSeen } = await import("./news/seen");
     markSeen(script.sources.map((s) => s.link));
     log.info(tag, `番組追加完了 合計 ${Date.now() - t0}ms`);

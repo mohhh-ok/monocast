@@ -11,8 +11,7 @@ data/config.json
 data/seen.sqlite
 data/seen.sqlite-shm
 data/seen.sqlite-wal
-public/audio/*.mp3
-public/audio/*.wav
+public/audio/
 .DS_Store
 *.tsbuildinfo
 .logs/

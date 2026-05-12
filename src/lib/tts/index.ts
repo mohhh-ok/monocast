@@ -1,6 +1,4 @@
-import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { getConfig } from "@/config";
 import { getEnv } from "@/lib/env";
@@ -12,8 +10,16 @@ import { createSayAdapter } from "./adapters/say";
 import { createVoicevoxAdapter } from "./adapters/voicevox";
 import { log } from "../log";
 import type { TtsAdapter } from "./types";
+import { readWavSampleRate } from "./wav";
 
 export type { TtsAdapter, SynthesizeOptions } from "./types";
+
+export type AudioSegment = {
+  /** ブラウザから参照する URL（/audio/<id>/seg-NNN.wav） */
+  url: string;
+  /** その段落の概算再生秒数 */
+  durationSec: number;
+};
 
 /** 原稿を段落単位に分割（短すぎる行は前と結合） */
 function splitParagraphs(text: string): string[] {
@@ -30,19 +36,6 @@ function splitParagraphs(text: string): string[] {
     }
   }
   return out;
-}
-
-function runFfmpeg(args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn("ffmpeg", args, { stdio: ["ignore", "ignore", "pipe"] });
-    let stderr = "";
-    proc.stderr.on("data", (d) => (stderr += d.toString()));
-    proc.on("error", reject);
-    proc.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-500)}`));
-    });
-  });
 }
 
 async function pickAdapter(cfg: Awaited<ReturnType<typeof getConfig>>): Promise<TtsAdapter> {
@@ -96,15 +89,33 @@ async function pickAdapter(cfg: Awaited<ReturnType<typeof getConfig>>): Promise<
   }
 }
 
+/** WAV ファイルの本体バイト数とサンプルレートから概算秒数を出す（16bit mono 前提） */
+function estimateWavDurationSec(wav: Buffer): number {
+  const sampleRate = readWavSampleRate(wav);
+  const bytesPerSecond = sampleRate * 2;
+  const dataBytes = Math.max(0, wav.length - 44);
+  return dataBytes / bytesPerSecond;
+}
+
+export type SynthesizeStreamOptions = {
+  logTag?: string;
+  /** 段落分割が確定したタイミング（合成開始前）に総数を通知する。 */
+  onStart?: (totalCount: number) => Promise<void> | void;
+  /** インデックス順に「公開可能になった」セグメントのスナップショットを渡す。 */
+  onProgress?: (publishedSegments: AudioSegment[]) => Promise<void> | void;
+};
+
 /**
- * 原稿テキストを TTS adapter で合成し、mp3 ファイルとして outPath に保存する。
- * 戻り値は再生時間（秒、概算）。
+ * 原稿テキストを TTS adapter で段落ごとに合成し、wav ファイルとして outDir に保存する。
+ * 段落 0 が完成した瞬間から onProgress で順番に公開していくので、呼び出し側は
+ * その時点で番組を再生可能にできる。
  */
-export async function synthesizeToMp3(
+export async function synthesizeToSegments(
   scriptBody: string,
-  outPath: string,
-  opts: { logTag?: string } = {},
-): Promise<{ durationSec: number }> {
+  outDir: string,
+  publicUrlBase: string,
+  opts: SynthesizeStreamOptions = {},
+): Promise<{ segments: AudioSegment[]; totalDurationSec: number }> {
   const tag = opts.logTag ?? "tts";
   const paragraphs = splitParagraphs(scriptBody);
   if (paragraphs.length === 0) throw new Error("空の原稿です");
@@ -116,79 +127,80 @@ export async function synthesizeToMp3(
     tag,
     `TTS=${adapter.name} 段落数=${paragraphs.length} 並列=${concurrency}`,
   );
-  const work = await fs.mkdtemp(path.join(tmpdir(), "airadio-"));
-  try {
-    const wavPaths: string[] = new Array(paragraphs.length);
-    let nextIndex = 0;
-    let done = 0;
-    const worker = async () => {
-      while (true) {
-        const i = nextIndex++;
-        if (i >= paragraphs.length) return;
-        const trailingSilenceSec = 0.9;
-        const tSeg = Date.now();
-        log.debug(tag, `段落 ${i + 1}/${paragraphs.length} 合成開始`, {
+
+  await fs.mkdir(outDir, { recursive: true });
+  await opts.onStart?.(paragraphs.length);
+
+  const segments: AudioSegment[] = new Array(paragraphs.length);
+  // 完成順に届く buffer。nextPublishIdx から連続して埋まったぶんを onProgress に流す。
+  const buffer: (AudioSegment | undefined)[] = new Array(paragraphs.length);
+  const published: AudioSegment[] = [];
+  let nextPublishIdx = 0;
+  let publishChain: Promise<void> = Promise.resolve();
+  let nextIndex = 0;
+  let done = 0;
+
+  const drain = async () => {
+    let appended = false;
+    while (buffer[nextPublishIdx]) {
+      published.push(buffer[nextPublishIdx]!);
+      nextPublishIdx++;
+      appended = true;
+    }
+    if (appended && opts.onProgress) {
+      await opts.onProgress(published.slice());
+    }
+  };
+
+  const worker = async () => {
+    while (true) {
+      const i = nextIndex++;
+      if (i >= paragraphs.length) return;
+      // 最終段落は次がないので無音不要
+      const isLast = i === paragraphs.length - 1;
+      const trailingSilenceSec = isLast ? 0 : 0.9;
+      const tSeg = Date.now();
+      log.debug(tag, `段落 ${i + 1}/${paragraphs.length} 合成開始`, {
+        index: i,
+        total: paragraphs.length,
+        len: paragraphs[i].length,
+        head: paragraphs[i].slice(0, 40),
+      });
+      try {
+        const wav = await adapter.synthesize(paragraphs[i], { trailingSilenceSec });
+        const filename = `seg-${String(i).padStart(3, "0")}.wav`;
+        await fs.writeFile(path.join(outDir, filename), wav);
+        const seg: AudioSegment = {
+          url: `${publicUrlBase}/${filename}`,
+          durationSec: Math.max(0.1, estimateWavDurationSec(wav)),
+        };
+        segments[i] = seg;
+        buffer[i] = seg;
+        done++;
+        log.info(
+          tag,
+          `  段落 ${i + 1}/${paragraphs.length} 合成 ${paragraphs[i].length}字 (${Date.now() - tSeg}ms) [${done}/${paragraphs.length}]`,
+        );
+        // インデックス順を保つため publishChain にチェーン
+        publishChain = publishChain.then(drain);
+      } catch (err) {
+        log.error(tag, `段落 ${i + 1}/${paragraphs.length} 合成失敗`, {
           index: i,
           total: paragraphs.length,
           len: paragraphs[i].length,
-          head: paragraphs[i].slice(0, 40),
+          head: paragraphs[i].slice(0, 80),
+          elapsedMs: Date.now() - tSeg,
         });
-        try {
-          const wav = await adapter.synthesize(paragraphs[i], { trailingSilenceSec });
-          const p = path.join(work, `seg-${String(i).padStart(3, "0")}.wav`);
-          await fs.writeFile(p, wav);
-          wavPaths[i] = p;
-          done++;
-          log.info(
-            tag,
-            `  段落 ${i + 1}/${paragraphs.length} 合成 ${paragraphs[i].length}字 (${Date.now() - tSeg}ms) [${done}/${paragraphs.length}]`,
-          );
-        } catch (err) {
-          log.error(tag, `段落 ${i + 1}/${paragraphs.length} 合成失敗`, {
-            index: i,
-            total: paragraphs.length,
-            len: paragraphs[i].length,
-            head: paragraphs[i].slice(0, 80),
-            elapsedMs: Date.now() - tSeg,
-          });
-          throw err;
-        }
+        throw err;
       }
-    };
-    await Promise.all(Array.from({ length: concurrency }, worker));
-    log.info(tag, "ffmpeg で結合中...");
+    }
+  };
+  await Promise.all(Array.from({ length: concurrency }, worker));
+  await publishChain; // 最後の drain を確実に流す
 
-    const listPath = path.join(work, "list.txt");
-    await fs.writeFile(
-      listPath,
-      wavPaths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join("\n"),
-    );
-
-    await fs.mkdir(path.dirname(outPath), { recursive: true });
-    await runFfmpeg([
-      "-y",
-      "-f",
-      "concat",
-      "-safe",
-      "0",
-      "-i",
-      listPath,
-      "-c:a",
-      "libmp3lame",
-      "-b:a",
-      "96k",
-      "-ar",
-      "44100",
-      outPath,
-    ]);
-
-    // wav のサンプル数を雑に合算して秒数推定（44.1kHz 16bit mono の前提に近い）
-    const stats = await Promise.all(wavPaths.map((p) => fs.stat(p)));
-    const totalBytes = stats.reduce((a, b) => a + b.size, 0);
-    const durationSec = Math.max(1, Math.round(totalBytes / (24000 * 2)));
-
-    return { durationSec };
-  } finally {
-    await fs.rm(work, { recursive: true, force: true }).catch(() => {});
-  }
+  const totalDurationSec = Math.max(
+    1,
+    Math.round(segments.reduce((a, s) => a + s.durationSec, 0)),
+  );
+  return { segments, totalDurationSec };
 }
