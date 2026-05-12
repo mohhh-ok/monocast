@@ -14,12 +14,15 @@ export function createVoicevoxAdapter(opts: VoicevoxAdapterOptions): TtsAdapter 
   return {
     name,
     async synthesize(text: string, { trailingSilenceSec }: SynthesizeOptions): Promise<Buffer> {
-      const qRes = await fetch(
-        `${voicevoxUrl}/audio_query?text=${encodeURIComponent(text)}&speaker=${speaker}`,
-        { method: "POST" },
-      );
+      const queryUrl = `${voicevoxUrl}/audio_query?text=${encodeURIComponent(text)}&speaker=${speaker}`;
+      let qRes: Response;
+      try {
+        qRes = await fetch(queryUrl, { method: "POST" });
+      } catch (err) {
+        throw new Error(`VOICEVOX audio_query 接続失敗 (${voicevoxUrl})`, { cause: err });
+      }
       if (!qRes.ok) {
-        throw new Error(`VOICEVOX audio_query failed: ${qRes.status}`);
+        throw new Error(`VOICEVOX audio_query failed: ${qRes.status} (${voicevoxUrl})`);
       }
       const query = await qRes.json();
       query.speedScale = 1.0;
@@ -28,13 +31,19 @@ export function createVoicevoxAdapter(opts: VoicevoxAdapterOptions): TtsAdapter 
         query.postPhonemeLength = trailingSilenceSec;
       }
 
-      const sRes = await fetch(`${voicevoxUrl}/synthesis?speaker=${speaker}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "audio/wav" },
-        body: JSON.stringify(query),
-      });
+      const synthUrl = `${voicevoxUrl}/synthesis?speaker=${speaker}`;
+      let sRes: Response;
+      try {
+        sRes = await fetch(synthUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "audio/wav" },
+          body: JSON.stringify(query),
+        });
+      } catch (err) {
+        throw new Error(`VOICEVOX synthesis 接続失敗 (${voicevoxUrl})`, { cause: err });
+      }
       if (!sRes.ok) {
-        throw new Error(`VOICEVOX synthesis failed: ${sRes.status}`);
+        throw new Error(`VOICEVOX synthesis failed: ${sRes.status} (${voicevoxUrl})`);
       }
       return Buffer.from(await sRes.arrayBuffer());
     },
