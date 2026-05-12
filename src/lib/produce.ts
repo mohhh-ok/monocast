@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { getConfig } from "@/config";
+import { formatErrorChain } from "./error";
 import type { LlmAdapter } from "./llm";
 import { log } from "./log";
 import { fetchNews } from "./news";
@@ -26,26 +27,6 @@ function profileScript(body: string) {
     longestLen,
     newlineCount: (body.match(/\n/g) ?? []).length,
   };
-}
-
-function describeErrorChain(err: unknown): { message: string; chain: string[]; stack?: string } {
-  const chain: string[] = [];
-  let cur: unknown = err;
-  const seen = new Set<unknown>();
-  let stack: string | undefined;
-  while (cur && !seen.has(cur)) {
-    seen.add(cur);
-    if (cur instanceof Error) {
-      const code = (cur as Error & { code?: string }).code;
-      chain.push(code ? `${cur.message} [${code}]` : cur.message);
-      if (!stack && cur.stack) stack = cur.stack;
-      cur = (cur as Error & { cause?: unknown }).cause;
-    } else {
-      chain.push(String(cur));
-      break;
-    }
-  }
-  return { message: chain.join(" <- "), chain, stack };
 }
 
 /** ニュース取得 → 台本 → 音声 → キュー追加 をまとめて行う（1 adapter で 1 本） */
@@ -154,7 +135,7 @@ export async function produceProgram(
     log.info(tag, `番組追加完了 合計 ${Date.now() - t0}ms`);
     return { status: "ok", program };
   } catch (err) {
-    const { message, chain, stack } = describeErrorChain(err);
+    const { message, chain, stack } = formatErrorChain(err);
     log.error(tag, `失敗: ${message}`, { chain, stack, elapsedMs: Date.now() - t0 });
     throw err;
   }

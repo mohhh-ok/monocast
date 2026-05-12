@@ -1,25 +1,17 @@
-import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
+import { openSqliteOnce } from "../sqlite";
 import { type NewsItem, NewsItemSchema } from "./types";
 
 const DB_FILE = path.join(process.cwd(), "data", "rss-cache.sqlite");
 
 const PayloadSchema = z.array(NewsItemSchema);
 
-let db: DatabaseSync | null = null;
-
-function getDb(): DatabaseSync {
-  if (db) return db;
-  mkdirSync(path.dirname(DB_FILE), { recursive: true });
-  db = new DatabaseSync(DB_FILE);
-  db.prepare("PRAGMA journal_mode = WAL").run();
+const getDb = openSqliteOnce(DB_FILE, (db) => {
   db.prepare(
     "CREATE TABLE IF NOT EXISTS rss_cache (feed_id TEXT PRIMARY KEY, fetched_at INTEGER NOT NULL, payload TEXT NOT NULL)",
   ).run();
-  return db;
-}
+});
 
 /** TTL 内であればキャッシュ済み NewsItem[] を返す。期限切れ・破損時は null。 */
 export function getCached(feedId: string, maxAgeMs: number): NewsItem[] | null {

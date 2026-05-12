@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { atomicWriteJson } from "./atomic-json";
 import type { Program } from "./queue.types";
+import { createSerialQueue } from "./serial";
 
 export type { Program };
 
@@ -23,21 +25,10 @@ async function load(): Promise<Store> {
 }
 
 async function save(store: Store): Promise<void> {
-  await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
-  // tmp に書いて rename することで、読み手が部分書き込み中の JSON を見ないようにする。
-  // 同一 FS 上の rename は POSIX でアトミック。
-  const tmp = `${DATA_FILE}.${process.pid}.${Date.now()}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(store, null, 2));
-  await fs.rename(tmp, DATA_FILE);
+  await atomicWriteJson(DATA_FILE, store);
 }
 
-// プロセス内で load → mutate → save を直列化し、lost update を防ぐ。
-let writeChain: Promise<unknown> = Promise.resolve();
-function runExclusive<T>(fn: () => Promise<T>): Promise<T> {
-  const next = writeChain.then(fn, fn);
-  writeChain = next.catch(() => {});
-  return next;
-}
+const runExclusive = createSerialQueue();
 
 export async function listPrograms(): Promise<Program[]> {
   const s = await load();

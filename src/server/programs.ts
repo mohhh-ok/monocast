@@ -1,26 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { formatErrorChain } from "@/lib/error";
 import { pickAdapter } from "@/lib/llm";
 import { produceProgram } from "@/lib/produce";
 import { listPrograms, removeProgram, type Program } from "@/lib/queue";
-
-function describeError(err: unknown): string {
-  const parts: string[] = [];
-  let cur: unknown = err;
-  const seen = new Set<unknown>();
-  while (cur && !seen.has(cur)) {
-    seen.add(cur);
-    if (cur instanceof Error) {
-      const code = (cur as Error & { code?: string }).code;
-      parts.push(code ? `${cur.message} [${code}]` : cur.message);
-      cur = (cur as Error & { cause?: unknown }).cause;
-    } else {
-      parts.push(String(cur));
-      break;
-    }
-  }
-  return parts.join(" <- ");
-}
 
 let inFlight: Promise<GenerateResult> | null = null;
 
@@ -47,7 +30,7 @@ export const generateProgramFn = createServerFn({ method: "POST" }).handler(
     try {
       return await task;
     } catch (err) {
-      return { status: "error", message: describeError(err) };
+      return { status: "error", message: formatErrorChain(err).message };
     }
   },
 );

@@ -1,6 +1,6 @@
-import { spawn } from "node:child_process";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { runProc } from "@/lib/proc";
 import {
   ConfigSchema,
   createProfile,
@@ -160,9 +160,9 @@ export const listSourcesFn = createServerFn({ method: "GET" }).handler(
 export const fetchSayVoicesFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<SayVoiceOption[]> => {
     try {
-      const out = await runCmd("say", ["-v", "?"]);
+      const { stdout } = await runProc("say", ["-v", "?"]);
       const voices: SayVoiceOption[] = [];
-      for (const line of out.split(/\r?\n/)) {
+      for (const line of stdout.split(/\r?\n/)) {
         const hashIdx = line.indexOf("#");
         const left = (hashIdx >= 0 ? line.slice(0, hashIdx) : line).trimEnd();
         if (!left.trim()) continue;
@@ -182,25 +182,6 @@ export const fetchSayVoicesFn = createServerFn({ method: "GET" }).handler(
     }
   },
 );
-
-function runCmd(cmd: string, args: string[]): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    proc.stdout.on("data", (d) => {
-      stdout += d.toString();
-    });
-    proc.stderr.on("data", (d) => {
-      stderr += d.toString();
-    });
-    proc.on("error", reject);
-    proc.on("close", (code) => {
-      if (code === 0) resolve(stdout);
-      else reject(new Error(`${cmd} exited ${code}: ${stderr.slice(-200)}`));
-    });
-  });
-}
 
 async function fetchVoicevoxCompatSpeakers(url: string): Promise<SpeakerOption[]> {
   try {

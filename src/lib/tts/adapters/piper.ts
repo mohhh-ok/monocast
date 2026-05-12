@@ -1,7 +1,7 @@
-import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { runProc } from "../../proc";
 import type { SynthesizeOptions, TtsAdapter } from "../types";
 import { appendSilenceToWav, readWavSampleRate } from "../wav";
 
@@ -27,7 +27,7 @@ export function createPiperAdapter(opts: PiperAdapterOptions): TtsAdapter {
       try {
         const args = ["--model", modelPath, "--output_file", out];
         if (speakerId !== undefined) args.push("--speaker", String(speakerId));
-        await runPiper(bin, args, text);
+        await runProc(bin, args, { stdin: text });
         const wav = await fs.readFile(out);
         const sampleRate = readWavSampleRate(wav);
         return appendSilenceToWav(wav, trailingSilenceSec, sampleRate);
@@ -36,21 +36,4 @@ export function createPiperAdapter(opts: PiperAdapterOptions): TtsAdapter {
       }
     },
   };
-}
-
-function runPiper(bin: string, args: string[], text: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn(bin, args, { stdio: ["pipe", "ignore", "pipe"] });
-    let stderr = "";
-    proc.stderr.on("data", (d) => {
-      stderr += d.toString();
-    });
-    proc.on("error", reject);
-    proc.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`piper exited ${code}: ${stderr.slice(-500)}`));
-    });
-    proc.stdin.write(text);
-    proc.stdin.end();
-  });
 }

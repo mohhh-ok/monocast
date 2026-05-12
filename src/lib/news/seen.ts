@@ -1,32 +1,18 @@
-import { DatabaseSync } from "node:sqlite";
-import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { openSqliteOnce } from "../sqlite";
 
 const DB_FILE = path.join(process.cwd(), "data", "seen.sqlite");
 const TTL_DAYS = 14;
 const TTL_MS = TTL_DAYS * 24 * 60 * 60 * 1000;
 
-let db: DatabaseSync | null = null;
-
-function runDDL(d: DatabaseSync, sql: string): void {
-  d.prepare(sql).run();
-}
-
-function getDb(): DatabaseSync {
-  if (db) return db;
-  mkdirSync(path.dirname(DB_FILE), { recursive: true });
-  db = new DatabaseSync(DB_FILE);
-  runDDL(db, "PRAGMA journal_mode = WAL");
-  runDDL(
-    db,
+const getDb = openSqliteOnce(DB_FILE, (db) => {
+  db.prepare(
     "CREATE TABLE IF NOT EXISTS seen_urls (url TEXT PRIMARY KEY, first_seen_at INTEGER NOT NULL)",
-  );
-  runDDL(
-    db,
+  ).run();
+  db.prepare(
     "CREATE INDEX IF NOT EXISTS seen_urls_first_seen_at ON seen_urls(first_seen_at)",
-  );
-  return db;
-}
+  ).run();
+});
 
 /** TTL を超えたレコードを削除。 */
 export function purgeExpired(): number {

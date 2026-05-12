@@ -1,5 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { atomicWriteJson } from "./lib/atomic-json";
+import { createSerialQueue } from "./lib/serial";
 import {
   ConfigSchema,
   DEFAULT_CONFIG,
@@ -25,20 +27,7 @@ export type Profile = { id: string; name: string; config: Config };
 
 type ProfileFile = { name: string; config: unknown };
 
-// load → mutate → save を直列化し、書き込み同士の取りこぼしを防ぐ。
-let writeChain: Promise<unknown> = Promise.resolve();
-function runExclusive<T>(fn: () => Promise<T>): Promise<T> {
-  const next = writeChain.then(fn, fn);
-  writeChain = next.catch(() => {});
-  return next;
-}
-
-async function atomicWriteJson(file: string, value: unknown): Promise<void> {
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(value, null, 2));
-  await fs.rename(tmp, file);
-}
+const runExclusive = createSerialQueue();
 
 function profilePath(id: string): string {
   return path.join(PROFILES_DIR, `${id}.json`);

@@ -1,7 +1,7 @@
-import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { runProc } from "../../proc";
 import type { SynthesizeOptions, TtsAdapter } from "../types";
 import { appendSilenceToWav } from "../wav";
 
@@ -35,7 +35,7 @@ export function createSayAdapter(opts: SayAdapterOptions = {}): TtsAdapter {
           out,
           text,
         );
-        await runSay(args);
+        await runProc("say", args);
         const wav = await fs.readFile(out);
         return appendSilenceToWav(wav, trailingSilenceSec, SAMPLE_RATE);
       } finally {
@@ -43,19 +43,4 @@ export function createSayAdapter(opts: SayAdapterOptions = {}): TtsAdapter {
       }
     },
   };
-}
-
-function runSay(args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn("say", args, { stdio: ["ignore", "ignore", "pipe"] });
-    let stderr = "";
-    proc.stderr.on("data", (d) => {
-      stderr += d.toString();
-    });
-    proc.on("error", reject);
-    proc.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`say exited ${code}: ${stderr.slice(-500)}`));
-    });
-  });
 }
