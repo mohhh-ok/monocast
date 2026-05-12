@@ -116,9 +116,8 @@ export async function synthesizeToMp3(
   try {
     const wavPaths: string[] = [];
     for (let i = 0; i < paragraphs.length; i++) {
-      const isLast = i === paragraphs.length - 1;
-      // 話題の間に約0.9秒の無音
-      const trailingSilenceSec = isLast ? 0 : 0.9;
+      // 話題の間と末尾に約0.9秒の無音
+      const trailingSilenceSec = 0.9;
       const tSeg = Date.now();
       const wav = await adapter.synthesize(paragraphs[i], { trailingSilenceSec });
       log.info(
