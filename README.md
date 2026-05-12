@@ -8,28 +8,15 @@ RSS (NHK / はてブ / 海外テック など) → LLM で台本 → TTS で合�
                                        キューが減ると自動補充
 ```
 
-## 設計方針 — なぜ 1 人ナレーション・音楽なしなのか
+## Quick Start
 
-最近の NotebookLM / podcastfy 系の「2 人ホストが軽妙に掛け合う」スタイルは初聴のインパクトはあるが、長時間流すと次のような違和感が指摘されている。
+```bash
+npm install
+cp .env.local.example .env.local   # 使うクラウド API のキーだけ入れる
+npm run dev                        # http://localhost:3000
+```
 
-- 同じ相槌（"Deep Dive" / "Hmm, that's interesting" / "I'm intrigued" など）が定型化して耳につく
-- ずっと同じ 2 人の声と話法が脳に居座って疲れる（Reddit でよく語られる「最初の 1 週間は良いが、ずっと同じ 2 人だと気づくと耐えられなくなる」現象）
-- 過剰に「自然」を狙った相槌や笑いが逆に uncanny に感じる
-- 新規 podcast の約 39% が AI 生成と推定され、英語圏では "podslop" と揶揄され始めている
-
-monocast はこの「うざさ」を意図的に避ける方向で作られている。
-
-- **1 人ナレーション**。掛け合い・相槌・笑い・キャラ立て全部なし。
-- **定型フレーズに頼らない** system プロンプト（"Deep Dive" 的な決まり文句を出さない）
-- **音楽 / BGM / ジングルなし**。淡々と読むだけ。
-- 話題の切り替わりに約 0.9 秒の無音を挟むだけで、感情演出はしない
-- **流しっぱなしでも疲れない作業 BGM 的なききながし**が目標
-
-参考:
-
-- [Google's NotebookLM had to teach its AI podcast hosts not to act annoyed at humans — TechCrunch](https://techcrunch.com/2025/01/14/googles-notebooklm-had-to-teach-its-ai-podcast-hosts-not-to-act-annoyed-at-humans/)
-- [I listened to 200 Notebook LM podcasts so you don't have to — Medium](https://medium.com/@bamby_media/i-listened-to-200-notebook-lm-podcasts-so-you-dont-have-to-d5b206911592)
-- ['Podslop' is a real and growing problem — TechRadar](https://www.techradar.com/audio/podslop-is-a-real-and-growing-problem-data-shows-39-percent-of-new-podcasts-are-now-likely-generated-by-ai-heres-why-i-wont-be-listening)
+ブラウザを開くと最初の番組を自動生成して再生し始める。キューが 2 本未満になると裏で補充される。プロバイダ・モデル・話者などはトップ画面の PROFILE バーの「編集」から切り替えられる（プロファイル単位で保存）。
 
 ## 必要なもの
 
@@ -45,15 +32,9 @@ monocast はこの「うざさ」を意図的に避ける方向で作られて�
 
 ## セットアップ
 
-```bash
-npm install
-cp .env.local.example .env.local
-# 使うクラウド LLM / TTS の API キーだけ .env.local に入れる
-```
-
 `.env.local` で扱うのは API キーのみ。プロバイダ切替・モデル・URL・話者などの設定は **起動後にトップ画面の PROFILE バーの「編集」から** 開く設定ダイアログで行い、プロファイル単位で `data/profiles/<id>.json` に保存される。
 
-### 利用可能な API キー（必要なものだけでよい）
+利用可能な API キー（必要なものだけでよい）:
 
 | 変数 | 用途 |
 | --- | --- |
@@ -73,7 +54,7 @@ cp .env.local.example .env.local
 
 いずれも JSON Schema で `{title, body}` を構造化出力させているのでフォーマット崩れは起きない。
 
-#### Ollama を使う場合
+Ollama を使う場合は別途インストールしてモデルを pull する:
 
 ```bash
 brew install ollama
@@ -116,15 +97,7 @@ curl -s http://localhost:50021/speakers | jq '.[] | {name, styles: [.styles[] | 
 
 過去 14 日に番組化済みの URL は SQLite (`seen_urls`) で除外しているので、同じニュースが繰り返し読まれない。
 
-## 起動
-
-```bash
-npm run dev
-```
-
-ブラウザで `http://localhost:3000` を開くと、最初の番組を自動生成して再生し始める。キューが 2 本未満になると裏で補充される。
-
-主要なデータ置き場:
+## データ置き場
 
 | パス | 内容 |
 | --- | --- |
@@ -142,6 +115,29 @@ npm run dev
 
 - [番組とキュー](docs/features/program.md)
 - [ログ](docs/features/logging.md)
+
+## 設計方針 — なぜ 1 人ナレーション・音楽なしなのか
+
+最近の NotebookLM / podcastfy 系の「2 人ホストが軽妙に掛け合う」スタイルは初聴のインパクトはあるが、長時間流すと次のような違和感が指摘されている。
+
+- 同じ相槌（"Deep Dive" / "Hmm, that's interesting" / "I'm intrigued" など）が定型化して耳につく
+- ずっと同じ 2 人の声と話法が脳に居座って疲れる（Reddit でよく語られる「最初の 1 週間は良いが、ずっと同じ 2 人だと気づくと耐えられなくなる」現象）
+- 過剰に「自然」を狙った相槌や笑いが逆に uncanny に感じる
+- 新規 podcast の約 39% が AI 生成と推定され、英語圏では "podslop" と揶揄され始めている
+
+monocast はこの「うざさ」を意図的に避ける方向で作られている。
+
+- **1 人ナレーション**。掛け合い・相槌・笑い・キャラ立て全部なし。
+- **定型フレーズに頼らない** system プロンプト（"Deep Dive" 的な決まり文句を出さない）
+- **音楽 / BGM / ジングルなし**。淡々と読むだけ。
+- 話題の切り替わりに約 0.9 秒の無音を挟むだけで、感情演出はしない
+- **流しっぱなしでも疲れない作業 BGM 的なききながし**が目標
+
+参考:
+
+- [Google's NotebookLM had to teach its AI podcast hosts not to act annoyed at humans — TechCrunch](https://techcrunch.com/2025/01/14/googles-notebooklm-had-to-teach-its-ai-podcast-hosts-not-to-act-annoyed-at-humans/)
+- [I listened to 200 Notebook LM podcasts so you don't have to — Medium](https://medium.com/@bamby_media/i-listened-to-200-notebook-lm-podcasts-so-you-dont-have-to-d5b206911592)
+- ['Podslop' is a real and growing problem — TechRadar](https://www.techradar.com/audio/podslop-is-a-real-and-growing-problem-data-shows-39-percent-of-new-podcasts-are-now-likely-generated-by-ai-heres-why-i-wont-be-listening)
 
 ## 今後の予定
 
