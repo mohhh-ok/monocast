@@ -1,11 +1,11 @@
 # monocast — ひとり用ききながしラジオ
 
-Claude Haiku 4.5 もしくはローカル LLM (Ollama) で台本を書き、VOICEVOX で音声化する、ローカル完結・自分専用のニュースききながしラジオ。音楽は流さず、情報のトーク主体。私的使用の範囲で動かす前提（公衆送信はしない）。
+ローカル LLM もしくはクラウド LLM で台本を書き、お好みの音声合成エンジンで読み上げる、ローカル完結・自分専用のニュースききながしラジオ。音楽は流さず、情報のトーク主体。私的使用の範囲で動かす前提（公衆送信はしない）。
 
 ```
-RSS (NHK / はてブ Tech) → LLM で台本 → VOICEVOX で合成 → ブラウザでキュー再生
-                                                       ↑
-                              キューが減ると自動補充
+RSS (NHK / はてブ / 海外テック など) → LLM で台本 → TTS で合成 → ブラウザでキュー再生
+                                                                ↑
+                                       キューが減ると自動補充
 ```
 
 ## 設計方針 — なぜ 1 人ナレーション・音楽なしなのか
@@ -33,62 +33,87 @@ monocast はこの「うざさ」を意図的に避ける方向で作られて�
 
 ## 必要なもの
 
-- Node.js 20+
+- Node.js 22+
 - ffmpeg (`brew install ffmpeg`)
-- VOICEVOX エンジン (デフォルト `http://localhost:50021` で起動)
-- Anthropic API キー **または** Ollama (ローカル LLM)
+- LLM プロバイダのいずれか
+  - Anthropic API キー / OpenAI API キー / Google Gemini API キー
+  - もしくは Ollama（ローカル LLM、無料）
+- TTS エンジンのいずれか
+  - VOICEVOX / AivisSpeech（ローカルで起動）
+  - macOS の `say` コマンド（macOS のみ・追加インストール不要）
+  - OpenAI TTS / ElevenLabs（API キーが必要）
+  - Piper（ローカル、オフライン）
 
 ## セットアップ
 
 ```bash
 npm install
 cp .env.local.example .env.local
-# .env.local を編集して LLM_PROVIDER と必要な設定を入れる
+# 使うクラウド LLM / TTS の API キーだけ .env.local に入れる
 ```
+
+`.env.local` で扱うのは API キーのみ。プロバイダ切替・モデル・URL・話者などの設定は **起動後に画面右上の ⚙ から** 行い、`data/config.json` に保存される。
+
+### 利用可能な API キー（必要なものだけでよい）
+
+| 変数 | 用途 |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | Claude (LLM) を使うとき必須 |
+| `OPENAI_API_KEY` | OpenAI の LLM・TTS を使うとき必須 |
+| `GEMINI_API_KEY` | Gemini を使うとき必須 |
+| `ELEVENLABS_API_KEY` | ElevenLabs を使うとき必須 |
 
 ### LLM プロバイダ
 
-`LLM_PROVIDER` で切替（既定 `anthropic`）。両プロバイダとも JSON Schema で `{title, body}` を構造化出力させているので、フォーマット崩れは起きない。
+| ID | デフォルトモデル | 備考 |
+| --- | --- | --- |
+| `anthropic` (既定) | `claude-haiku-4-5` | `ANTHROPIC_API_KEY` |
+| `openai` | `gpt-4.1-nano` | `OPENAI_API_KEY` |
+| `gemini` | `gemini-2.5-flash-lite` | `GEMINI_API_KEY` |
+| `ollama` | `qwen2.5:3b-instruct` | `http://localhost:11434` |
 
-#### Anthropic (デフォルト)
+いずれも JSON Schema で `{title, body}` を構造化出力させているのでフォーマット崩れは起きない。
 
-`.env.local` に `ANTHROPIC_API_KEY` を入れるだけ。モデルは `ANTHROPIC_MODEL` で変更可（既定 `claude-haiku-4-5`）。
-
-#### Ollama (ローカル、無料)
-
-[Ollama](https://ollama.com/) をインストールしてモデルを落としておく:
+#### Ollama を使う場合
 
 ```bash
 brew install ollama
 ollama serve &
-ollama pull qwen2.5:7b-instruct     # 日本語＋構造化出力に強い既定モデル
-# 余裕があれば qwen2.5:14b-instruct / gemma3:12b なども試す
+ollama pull qwen2.5:3b-instruct          # 既定（軽量・日本語OK）
+# 余裕があれば qwen2.5:7b-instruct / qwen2.5:14b-instruct なども
 ```
 
-`.env.local`:
+設定画面から `LLM = Ollama` に切替・モデル名を変更する。
 
-```bash
-LLM_PROVIDER=ollama
-OLLAMA_MODEL=qwen2.5:7b-instruct
-```
+### TTS エンジン
 
-### 環境変数
-
-| 変数 | デフォルト | 説明 |
+| ID | デフォルト | 備考 |
 | --- | --- | --- |
-| `LLM_PROVIDER` | `anthropic` | `anthropic` か `ollama` |
-| `ANTHROPIC_API_KEY` | (anthropic 時必須) | Claude API キー |
-| `ANTHROPIC_MODEL` | `claude-haiku-4-5` | Anthropic モデル ID |
-| `OLLAMA_URL` | `http://localhost:11434` | Ollama エンドポイント |
-| `OLLAMA_MODEL` | `qwen2.5:7b-instruct` | Ollama モデル名 |
-| `VOICEVOX_URL` | `http://localhost:50021` | VOICEVOX エンジン |
-| `VOICEVOX_SPEAKER` | `2` (四国めたん ノーマル) | 話者 ID。`/speakers` で確認できる |
+| `voicevox` (既定) | `http://localhost:50021` / 話者 `2`（四国めたん） | 別途 VOICEVOX エンジンを起動 |
+| `aivisspeech` | `http://localhost:10101` | VOICEVOX 互換 API |
+| `say` | システム既定の声 / 180wpm | macOS 内蔵、追加不要 |
+| `openai` | `gpt-4o-mini-tts` / `alloy` | `OPENAI_API_KEY` |
+| `elevenlabs` | `eleven_turbo_v2_5` / `21m00Tcm4TlvDq8ikWAM` | `ELEVENLABS_API_KEY` |
+| `piper` | `piper` バイナリ + モデルファイルのパス | オフライン |
 
-話者 ID の例:
+VOICEVOX の話者 ID 一覧:
 
 ```bash
 curl -s http://localhost:50021/speakers | jq '.[] | {name, styles: [.styles[] | {name, id}]}'
 ```
+
+### ニュースソース
+
+設定画面でカテゴリ単位で ON/OFF できる。既定は全 ON。
+
+- **国内**: NHK（主要 / 社会 / 文化 / 科学医療 / 経済 / 国際 / スポーツ）、BBC 日本語
+- **テック**: Publickey / ITmedia NEWS / GIGAZINE / Zenn
+- **海外（英語、LLM で和訳）**: TechCrunch / The Verge / BBC News / Hacker News
+- **はてブ**: 総合 / Tech / 暮らし / 政治と経済 / おもしろ
+
+各フィードは **SQLite に 10 分キャッシュ**し、同一ドメインのフィードは直列で叩いて相手側に負荷をかけないようにしている（`data/rss-cache.sqlite`）。
+
+過去 14 日に番組化済みの URL は SQLite (`seen_urls`) で除外しているので、同じニュースが繰り返し読まれない。
 
 ## 起動
 
@@ -97,6 +122,17 @@ npm run dev
 ```
 
 ブラウザで `http://localhost:3000` を開くと、最初の番組を自動生成して再生し始める。キューが 2 本未満になると裏で補充される。
+
+主要なデータ置き場:
+
+| パス | 内容 |
+| --- | --- |
+| `data/config.json` | 設定（⚙ から保存される） |
+| `data/queue.json` | 番組キューのメタデータ |
+| `data/rss-cache.sqlite` | RSS の 10 分キャッシュ |
+| `data/seen.sqlite` | 過去 14 日に読んだ URL |
+| `public/audio/*.mp3` | 各番組の音声（再生終了で削除） |
+| `.logs/app.jsonl` | 詳細ログ（起動ごとにクリア） |
 
 ## 仕様ドキュメント
 
