@@ -3,6 +3,10 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { getConfig } from "@/config";
+import { createVoicevoxAdapter } from "./adapters/voicevox";
+import type { TtsAdapter } from "./types";
+
+export type { TtsAdapter, SynthesizeOptions } from "./types";
 
 /** 原稿を段落単位に分割（短すぎる行は前と結合） */
 function splitParagraphs(text: string): string[] {
@@ -21,38 +25,6 @@ function splitParagraphs(text: string): string[] {
   return out;
 }
 
-async function synthOne(
-  text: string,
-  voicevoxUrl: string,
-  speaker: number,
-  trailingSilenceSec: number,
-): Promise<Buffer> {
-  const qRes = await fetch(
-    `${voicevoxUrl}/audio_query?text=${encodeURIComponent(text)}&speaker=${speaker}`,
-    { method: "POST" },
-  );
-  if (!qRes.ok) {
-    throw new Error(`VOICEVOX audio_query failed: ${qRes.status}`);
-  }
-  const query = await qRes.json();
-  query.speedScale = 1.0;
-  query.volumeScale = 1.0;
-  // 話題の切り替わりに「間」を入れる
-  if (trailingSilenceSec > 0) {
-    query.postPhonemeLength = trailingSilenceSec;
-  }
-
-  const sRes = await fetch(`${voicevoxUrl}/synthesis?speaker=${speaker}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "audio/wav" },
-    body: JSON.stringify(query),
-  });
-  if (!sRes.ok) {
-    throw new Error(`VOICEVOX synthesis failed: ${sRes.status}`);
-  }
-  return Buffer.from(await sRes.arrayBuffer());
-}
-
 function runFfmpeg(args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const proc = spawn("ffmpeg", args, { stdio: ["ignore", "ignore", "pipe"] });
@@ -66,8 +38,16 @@ function runFfmpeg(args: string[]): Promise<void> {
   });
 }
 
+async function pickAdapter(): Promise<TtsAdapter> {
+  const cfg = await getConfig();
+  return createVoicevoxAdapter({
+    voicevoxUrl: cfg.voicevoxUrl,
+    speaker: cfg.voicevoxSpeaker,
+  });
+}
+
 /**
- * 原稿テキストを VOICEVOX で合成し、mp3 ファイルとして outPath に保存する。
+ * 原稿テキストを TTS adapter で合成し、mp3 ファイルとして outPath に保存する。
  * 戻り値は再生時間（秒、概算）。
  */
 export async function synthesizeToMp3(
@@ -77,19 +57,15 @@ export async function synthesizeToMp3(
   const paragraphs = splitParagraphs(scriptBody);
   if (paragraphs.length === 0) throw new Error("空の原稿です");
 
-  const cfg = await getConfig();
+  const adapter = await pickAdapter();
   const work = await fs.mkdtemp(path.join(tmpdir(), "airadio-"));
   try {
     const wavPaths: string[] = [];
     for (let i = 0; i < paragraphs.length; i++) {
       const isLast = i === paragraphs.length - 1;
-      const trailing = isLast ? 0 : 0.9; // 話題の間に約0.9秒の無音
-      const wav = await synthOne(
-        paragraphs[i],
-        cfg.voicevoxUrl,
-        cfg.voicevoxSpeaker,
-        trailing,
-      );
+      // 話題の間に約0.9秒の無音
+      const trailingSilenceSec = isLast ? 0 : 0.9;
+      const wav = await adapter.synthesize(paragraphs[i], { trailingSilenceSec });
       const p = path.join(work, `seg-${String(i).padStart(3, "0")}.wav`);
       await fs.writeFile(p, wav);
       wavPaths.push(p);
