@@ -1,13 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { produceProgram } from "@/lib/produce";
+import { produceProgram, type ProduceResult } from "@/lib/produce";
 import { listPrograms, removeProgram, type Program } from "@/lib/queue";
 import { getConfig } from "@/config";
 
-let inFlight: Promise<Program> | null = null;
+let inFlight: Promise<ProduceResult> | null = null;
 
 export type GenerateResult =
   | { status: "ok"; program: Program }
+  | { status: "empty" }
   | { status: "already-running" }
   | { status: "error"; message: string };
 
@@ -22,8 +23,7 @@ export const generateProgramFn = createServerFn({ method: "POST" }).handler(
     inFlight = task;
 
     try {
-      const program = await task;
-      return { status: "ok", program };
+      return await task;
     } catch (err) {
       return {
         status: "error",

@@ -267,7 +267,7 @@ function SettingsPage() {
 
         {enabledSet.size === 0 && (
           <div style={{ fontSize: 12, color: "#ffb8c0", marginTop: 8 }}>
-            すべてのソースが OFF です。番組生成は失敗します。
+            すべてのソースが OFF です。番組生成は空結果となり、次の番組は作られません。
           </div>
         )}
       </section>

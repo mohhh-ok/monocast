@@ -4,6 +4,7 @@ import {
   createRootRoute,
   Outlet,
 } from "@tanstack/react-router";
+import { Provider as JotaiProvider } from "jotai";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
@@ -30,7 +31,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {children ?? <Outlet />}
+        <JotaiProvider>{children ?? <Outlet />}</JotaiProvider>
         <Scripts />
       </body>
     </html>

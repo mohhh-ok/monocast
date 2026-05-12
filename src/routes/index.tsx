@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAtom } from "jotai";
 import {
   dismissProgramFn,
   generateProgramFn,
   listProgramsFn,
 } from "@/server/programs";
+import { historyAtom } from "@/lib/atoms";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -31,6 +33,7 @@ function Home() {
   const [showScript, setShowScript] = useState(false);
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [history, setHistory] = useAtom(historyAtom);
 
   const refresh = useCallback(async () => {
     const data = await listProgramsFn();
@@ -44,6 +47,10 @@ function Home() {
     try {
       const result = await generateProgramFn();
       if (result.status === "error") throw new Error(result.message);
+      if (result.status === "empty") {
+        setError("ニュースソースが選択されていません。/settings で選んでください。");
+        return;
+      }
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -58,25 +65,37 @@ function Home() {
   }, [refresh]);
 
   useEffect(() => {
-    if (programs.length < MIN_QUEUE && !generating) {
+    if (programs.length < MIN_QUEUE && !generating && !error) {
       generate();
     }
-  }, [programs.length, generating, generate]);
+  }, [programs.length, generating, generate, error]);
 
   const current = programs[0];
   const upcoming = programs.slice(1);
 
+  const archive = useCallback(
+    (program: Program) => {
+      if (program.sources.length === 0) return;
+      const playedAt = new Date().toISOString();
+      const entries = program.sources.map((s) => ({ ...s, playedAt }));
+      setHistory((prev) => [...entries, ...prev]);
+    },
+    [setHistory],
+  );
+
   const handleEnded = useCallback(async () => {
     if (!current) return;
+    archive(current);
     await dismissProgramFn({ data: { id: current.id } });
     await refresh();
-  }, [current, refresh]);
+  }, [current, refresh, archive]);
 
   const skip = useCallback(async () => {
     if (!current) return;
+    archive(current);
     await dismissProgramFn({ data: { id: current.id } });
     await refresh();
-  }, [current, refresh]);
+  }, [current, refresh, archive]);
 
   return (
     <main
@@ -236,7 +255,32 @@ function Home() {
                 <ul style={{ marginTop: 8, paddingLeft: 18, lineHeight: 1.8 }}>
                   {current.sources.map((s, i) => (
                     <li key={i}>
-                      <a href={s.link} target="_blank" rel="noreferrer">
+                      <a
+                        href={s.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        [{s.source}] {s.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+
+            {history.length > 0 && (
+              <details style={{ marginTop: 8, fontSize: 12, color: "#8a93b8" }}>
+                <summary style={{ cursor: "pointer" }}>
+                  これまでのソース ({history.length})
+                </summary>
+                <ul style={{ marginTop: 8, paddingLeft: 18, lineHeight: 1.8 }}>
+                  {history.map((s, i) => (
+                    <li key={`${s.playedAt}-${i}`}>
+                      <a
+                        href={s.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
                         [{s.source}] {s.title}
                       </a>
                     </li>
