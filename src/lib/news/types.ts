@@ -1,12 +1,13 @@
 import { z } from "zod";
 
-export type NewsItem = {
-  title: string;
-  link: string;
-  source: string;
-  pubDate?: string;
-  contentSnippet?: string;
-};
+export const NewsItemSchema = z.object({
+  title: z.string(),
+  link: z.string(),
+  source: z.string(),
+  pubDate: z.string().optional(),
+  contentSnippet: z.string().optional(),
+});
+export type NewsItem = z.infer<typeof NewsItemSchema>;
 
 export type NewsAdapter = {
   /** adapter 識別子。ログ・デバッグ用。 */
