@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { getConfig } from "@/config";
 import type { LlmAdapter } from "./llm";
+import { log } from "./log";
 import { fetchNews } from "./news";
 import { addProgram, type Program } from "./queue";
 import { generateProgramScript } from "./script";
@@ -15,16 +16,43 @@ export type ProduceResult =
 export async function produceProgram(
   adapter: LlmAdapter,
 ): Promise<ProduceResult> {
-  const cfg = await getConfig();
-  const news = await fetchNews(5, cfg.enabledSources);
-  if (news.length === 0) return { status: "empty" };
-
-  const script = await generateProgramScript(news, adapter);
-
   const id = randomUUID();
+  const shortId = id.slice(0, 8);
+  const tag = `produce:${shortId}`;
+  const t0 = Date.now();
+  log.info(tag, `開始 LLM=${adapter.label} (${adapter.id}/${adapter.model})`);
+
+  const cfg = await getConfig();
+  const tNews = Date.now();
+  const news = await fetchNews(10, cfg.enabledSources);
+  log.info(
+    tag,
+    `ニュース取得 ${news.length}件 (${Date.now() - tNews}ms)`,
+  );
+  if (news.length === 0) {
+    log.warn(tag, "ニュースが0件のため中止");
+    return { status: "empty" };
+  }
+
+  const tScript = Date.now();
+  log.info(tag, "台本生成中...");
+  const script = await generateProgramScript(news, adapter);
+  log.info(
+    tag,
+    `台本完了 「${script.title}」${script.body.length}字 (${Date.now() - tScript}ms)`,
+  );
+
   const filename = `${id}.mp3`;
   const outPath = path.join(process.cwd(), "public", "audio", filename);
-  const { durationSec } = await synthesizeToMp3(script.body, outPath);
+  const tTts = Date.now();
+  log.info(tag, `音声合成開始 -> ${filename}`);
+  const { durationSec } = await synthesizeToMp3(script.body, outPath, {
+    logTag: tag,
+  });
+  log.info(
+    tag,
+    `音声完了 ${durationSec}s (${Date.now() - tTts}ms)`,
+  );
 
   const program: Program = {
     id,
@@ -41,5 +69,6 @@ export async function produceProgram(
     },
   };
   await addProgram(program);
+  log.info(tag, `番組追加完了 合計 ${Date.now() - t0}ms`);
   return { status: "ok", program };
 }

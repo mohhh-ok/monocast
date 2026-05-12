@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { ConfigSchema, getConfig, saveConfig, type Config } from "@/config";
 import { listSources, SourceOptionSchema } from "@/lib/news";
 import type { SourceOption } from "@/lib/news";
@@ -92,26 +93,38 @@ function runCmd(cmd: string, args: string[]): Promise<string> {
   });
 }
 
+async function fetchVoicevoxCompatSpeakers(url: string): Promise<SpeakerOption[]> {
+  try {
+    const res = await fetch(`${url.replace(/\/$/, "")}/speakers`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as Array<{
+      name: string;
+      styles: Array<{ id: number; name: string }>;
+    }>;
+    return data.flatMap((sp) =>
+      sp.styles.map((st) => ({
+        id: st.id,
+        label: `${sp.name} (${st.name})`,
+      })),
+    );
+  } catch {
+    return [];
+  }
+}
+
 export const fetchSpeakersFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<SpeakerOption[]> => {
     const cfg = await getConfig();
-    try {
-      const res = await fetch(`${cfg.voicevoxUrl}/speakers`, {
-        cache: "no-store",
-      });
-      if (!res.ok) return [];
-      const data = (await res.json()) as Array<{
-        name: string;
-        styles: Array<{ id: number; name: string }>;
-      }>;
-      return data.flatMap((sp) =>
-        sp.styles.map((st) => ({
-          id: st.id,
-          label: `${sp.name} (${st.name})`,
-        })),
-      );
-    } catch {
-      return [];
-    }
+    return fetchVoicevoxCompatSpeakers(cfg.voicevoxUrl);
   },
 );
+
+export const fetchAivisSpeakersFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ url: z.string().url() }).optional())
+  .handler(async ({ data }): Promise<SpeakerOption[]> => {
+    const cfg = await getConfig();
+    const url = data?.url ?? cfg.aivisSpeechUrl;
+    return fetchVoicevoxCompatSpeakers(url);
+  });

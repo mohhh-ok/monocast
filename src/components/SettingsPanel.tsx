@@ -8,6 +8,7 @@ import {
   type SourceCategory,
 } from "@/lib/news";
 import {
+  fetchAivisSpeakersFn,
   fetchSayVoicesFn,
   fetchSpeakersFn,
   listSourcesFn,
@@ -31,6 +32,7 @@ type Props = {
 export function SettingsPanel({ onClose }: Props) {
   const [cfg, setCfg] = useState<Config | null>(null);
   const [speakers, setSpeakers] = useState<SpeakerOption[]>([]);
+  const [aivisSpeakers, setAivisSpeakers] = useState<SpeakerOption[]>([]);
   const [sayVoices, setSayVoices] = useState<SayVoiceOption[]>([]);
   const [sources, setSources] = useState<SourceOption[]>([]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -40,12 +42,14 @@ export function SettingsPanel({ onClose }: Props) {
     Promise.all([
       loadConfigFn(),
       fetchSpeakersFn(),
+      fetchAivisSpeakersFn(),
       fetchSayVoicesFn(),
       listSourcesFn(),
-    ]).then(([c, sp, sv, src]) => {
+    ]).then(([c, sp, asp, sv, src]) => {
       if (cancelled) return;
       setCfg(c);
       setSpeakers(sp);
+      setAivisSpeakers(asp);
       setSayVoices(sv);
       setSources(src);
     });
@@ -133,6 +137,11 @@ export function SettingsPanel({ onClose }: Props) {
   const refreshSpeakers = async () => {
     const list = await fetchSpeakersFn();
     setSpeakers(list);
+  };
+
+  const refreshAivisSpeakers = async () => {
+    const list = await fetchAivisSpeakersFn({ data: { url: cfg.aivisSpeechUrl } });
+    setAivisSpeakers(list);
   };
 
   const refreshSayVoices = async () => {
@@ -338,6 +347,173 @@ export function SettingsPanel({ onClose }: Props) {
           </>
         )}
 
+        {cfg.selectedTts === "aivisspeech" && (
+          <>
+            <Field label="AivisSpeech URL" hint="既定ポートは 10101">
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="url"
+                  value={cfg.aivisSpeechUrl}
+                  onChange={(e) => update("aivisSpeechUrl", e.target.value)}
+                  style={inputStyle}
+                />
+                <button type="button" onClick={refreshAivisSpeakers} style={btnStyle()}>
+                  話者を再取得
+                </button>
+              </div>
+            </Field>
+
+            <Field
+              label="話者"
+              hint={
+                aivisSpeakers.length === 0
+                  ? "AivisSpeech に接続できない場合は ID を直接入力"
+                  : undefined
+              }
+            >
+              {aivisSpeakers.length > 0 ? (
+                <select
+                  value={cfg.aivisSpeechSpeaker}
+                  onChange={(e) =>
+                    update("aivisSpeechSpeaker", Number(e.target.value))
+                  }
+                  style={inputStyle}
+                >
+                  {aivisSpeakers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label} (id: {s.id})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="number"
+                  value={cfg.aivisSpeechSpeaker}
+                  onChange={(e) =>
+                    update("aivisSpeechSpeaker", Number(e.target.value))
+                  }
+                  style={inputStyle}
+                />
+              )}
+            </Field>
+          </>
+        )}
+
+        {cfg.selectedTts === "openai" && (
+          <>
+            <Field
+              label="OpenAI TTS モデル"
+              hint="API キー: OPENAI_API_KEY / 候補は目安・自由入力可"
+            >
+              <input
+                type="text"
+                list="openai-tts-models"
+                value={cfg.openaiTtsModel}
+                onChange={(e) => update("openaiTtsModel", e.target.value)}
+                style={inputStyle}
+              />
+              <datalist id="openai-tts-models">
+                {OPENAI_TTS_MODELS.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
+            </Field>
+            <Field label="Voice">
+              <input
+                type="text"
+                list="openai-tts-voices"
+                value={cfg.openaiTtsVoice}
+                onChange={(e) => update("openaiTtsVoice", e.target.value)}
+                style={inputStyle}
+              />
+              <datalist id="openai-tts-voices">
+                {OPENAI_TTS_VOICES.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
+            </Field>
+          </>
+        )}
+
+        {cfg.selectedTts === "elevenlabs" && (
+          <>
+            <Field
+              label="ElevenLabs モデル"
+              hint="API キー: ELEVENLABS_API_KEY / 候補は目安・自由入力可"
+            >
+              <input
+                type="text"
+                list="elevenlabs-models"
+                value={cfg.elevenlabsModelId}
+                onChange={(e) => update("elevenlabsModelId", e.target.value)}
+                style={inputStyle}
+              />
+              <datalist id="elevenlabs-models">
+                {ELEVENLABS_MODELS.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
+            </Field>
+            <Field
+              label="Voice ID"
+              hint="ElevenLabs ダッシュボードの Voice Library で確認した ID"
+            >
+              <input
+                type="text"
+                value={cfg.elevenlabsVoiceId}
+                onChange={(e) => update("elevenlabsVoiceId", e.target.value)}
+                placeholder="21m00Tcm4TlvDq8ikWAM"
+                style={inputStyle}
+              />
+            </Field>
+          </>
+        )}
+
+        {cfg.selectedTts === "piper" && (
+          <>
+            <Field
+              label="Piper バイナリ"
+              hint="PATH が通っていれば 'piper' のままで OK。フルパスも可。"
+            >
+              <input
+                type="text"
+                value={cfg.piperBin}
+                onChange={(e) => update("piperBin", e.target.value)}
+                style={inputStyle}
+              />
+            </Field>
+            <Field
+              label="Voice model (.onnx) のパス"
+              hint="huggingface.co/rhasspy/piper-voices などから取得した .onnx を絶対パスで指定"
+            >
+              <input
+                type="text"
+                value={cfg.piperModelPath}
+                onChange={(e) => update("piperModelPath", e.target.value)}
+                placeholder="/path/to/ja_JP-voice.onnx"
+                style={inputStyle}
+              />
+            </Field>
+            <Field
+              label="Speaker ID (任意)"
+              hint="multi-speaker モデルの場合のみ指定"
+            >
+              <input
+                type="number"
+                value={cfg.piperSpeakerId ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  update(
+                    "piperSpeakerId",
+                    v === "" ? undefined : Number(v),
+                  );
+                }}
+                style={inputStyle}
+              />
+            </Field>
+          </>
+        )}
+
         {cfg.selectedTts === "say" && (
           <>
             <Field
@@ -520,8 +696,38 @@ const LLM_LABELS: Record<LlmId, string> = {
 
 const TTS_LABELS: Record<TtsId, string> = {
   voicevox: "VOICEVOX",
+  aivisspeech: "AivisSpeech",
   say: "macOS say",
+  openai: "OpenAI TTS",
+  elevenlabs: "ElevenLabs",
+  piper: "Piper (ローカル)",
 };
+
+const OPENAI_TTS_MODELS = [
+  "gpt-4o-mini-tts",
+  "tts-1",
+  "tts-1-hd",
+] as const;
+
+const OPENAI_TTS_VOICES = [
+  "alloy",
+  "ash",
+  "ballad",
+  "coral",
+  "echo",
+  "fable",
+  "nova",
+  "onyx",
+  "sage",
+  "shimmer",
+  "verse",
+] as const;
+
+const ELEVENLABS_MODELS = [
+  "eleven_turbo_v2_5",
+  "eleven_flash_v2_5",
+  "eleven_multilingual_v2",
+] as const;
 
 // 安い順に列挙（2026-05 時点・公式公開価格ベース）
 const ANTHROPIC_MODELS = [

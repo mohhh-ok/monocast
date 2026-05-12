@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { SynthesizeOptions, TtsAdapter } from "../types";
+import { appendSilenceToWav } from "../wav";
 
 export type SayAdapterOptions = {
   name?: string;
@@ -57,31 +58,4 @@ function runSay(args: string[]): Promise<void> {
       else reject(new Error(`say exited ${code}: ${stderr.slice(-500)}`));
     });
   });
-}
-
-/**
- * 16bit mono LE PCM WAV の data チャンクに無音を追記する。
- * say は WAVE_FORMAT_PCM で吐くので、data チャンクサイズと RIFF サイズだけ書き換えれば済む。
- */
-function appendSilenceToWav(wav: Buffer, silenceSec: number, sampleRate: number): Buffer {
-  if (silenceSec <= 0) return wav;
-  let i = 12;
-  while (i < wav.length - 8) {
-    const id = wav.toString("ascii", i, i + 4);
-    const size = wav.readUInt32LE(i + 4);
-    if (id === "data") {
-      const silenceBytes = Math.round(silenceSec * sampleRate) * 2;
-      const silence = Buffer.alloc(silenceBytes);
-      const head = wav.subarray(0, i + 8);
-      const data = wav.subarray(i + 8, i + 8 + size);
-      const tail = wav.subarray(i + 8 + size);
-      const out = Buffer.concat([head, data, silence, tail]);
-      out.writeUInt32LE(size + silenceBytes, i + 4);
-      const riffSize = wav.readUInt32LE(4);
-      out.writeUInt32LE(riffSize + silenceBytes, 4);
-      return out;
-    }
-    i += 8 + size + (size % 2);
-  }
-  throw new Error("WAV data chunk not found");
 }

@@ -3,8 +3,14 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { getConfig } from "@/config";
+import { getEnv } from "@/lib/env";
+import { createAivisSpeechAdapter } from "./adapters/aivisspeech";
+import { createElevenLabsAdapter } from "./adapters/elevenlabs";
+import { createOpenAiTtsAdapter } from "./adapters/openai";
+import { createPiperAdapter } from "./adapters/piper";
 import { createSayAdapter } from "./adapters/say";
 import { createVoicevoxAdapter } from "./adapters/voicevox";
+import { log } from "../log";
 import type { TtsAdapter } from "./types";
 
 export type { TtsAdapter, SynthesizeOptions } from "./types";
@@ -51,6 +57,42 @@ async function pickAdapter(): Promise<TtsAdapter> {
       return createVoicevoxAdapter({
         voicevoxUrl: cfg.voicevoxUrl,
         speaker: cfg.voicevoxSpeaker,
+      });
+    case "aivisspeech":
+      return createAivisSpeechAdapter({
+        url: cfg.aivisSpeechUrl,
+        speaker: cfg.aivisSpeechSpeaker,
+      });
+    case "openai": {
+      const env = getEnv();
+      if (!env.OPENAI_API_KEY) {
+        throw new Error("OPENAI_API_KEY が設定されていません");
+      }
+      return createOpenAiTtsAdapter({
+        apiKey: env.OPENAI_API_KEY,
+        model: cfg.openaiTtsModel,
+        voice: cfg.openaiTtsVoice,
+      });
+    }
+    case "elevenlabs": {
+      const env = getEnv();
+      if (!env.ELEVENLABS_API_KEY) {
+        throw new Error("ELEVENLABS_API_KEY が設定されていません");
+      }
+      return createElevenLabsAdapter({
+        apiKey: env.ELEVENLABS_API_KEY,
+        modelId: cfg.elevenlabsModelId,
+        voiceId: cfg.elevenlabsVoiceId,
+      });
+    }
+    case "piper":
+      if (!cfg.piperModelPath) {
+        throw new Error("Piper の voice model パス (piperModelPath) が未設定です");
+      }
+      return createPiperAdapter({
+        bin: cfg.piperBin,
+        modelPath: cfg.piperModelPath,
+        speakerId: cfg.piperSpeakerId,
       });
   }
 }
