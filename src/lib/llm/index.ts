@@ -2,6 +2,7 @@ import { getConfig } from "@/config";
 import { getEnv } from "@/lib/env";
 import { createAnthropicAdapter } from "./adapters/anthropic";
 import { createGeminiAdapter } from "./adapters/gemini";
+import { createOllamaAdapter } from "./adapters/ollama";
 import { createOpenAiCompatAdapter } from "./adapters/openai-compat";
 import type { LlmAdapter, LlmId } from "./types";
 
@@ -44,10 +45,8 @@ function buildAdapter(id: LlmId, cfg: CfgLike, env: EnvLike): LlmAdapter {
         apiKey: env.GEMINI_API_KEY,
       });
     case "ollama":
-      return createOpenAiCompatAdapter({
-        id: "ollama",
-        label: `Ollama (${cfg.ollamaModel})`,
-        baseUrl: `${cfg.ollamaUrl.replace(/\/$/, "")}/v1`,
+      return createOllamaAdapter({
+        baseUrl: cfg.ollamaUrl,
         model: cfg.ollamaModel,
       });
   }

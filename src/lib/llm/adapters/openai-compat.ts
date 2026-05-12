@@ -6,8 +6,7 @@ import type {
 } from "../types";
 
 export type OpenAiCompatAdapterOptions = {
-  /** adapter ID。"openai" もしくは "ollama"。 */
-  id: Extract<LlmId, "openai" | "ollama">;
+  id: Extract<LlmId, "openai">;
   label: string;
   baseUrl: string;
   model: string;
@@ -15,8 +14,7 @@ export type OpenAiCompatAdapterOptions = {
 };
 
 /**
- * OpenAI 互換の Chat Completions API を叩く adapter。
- * OpenAI 本家と Ollama の両方をこの実装で吸収する。
+ * OpenAI Chat Completions API を叩く adapter。
  */
 export function createOpenAiCompatAdapter(opts: OpenAiCompatAdapterOptions): LlmAdapter {
   const { id, label, baseUrl, model, apiKey } = opts;
