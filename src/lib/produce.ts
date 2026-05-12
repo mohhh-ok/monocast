@@ -8,6 +8,8 @@ import { addProgram, type Program } from "./queue";
 import { generateProgramScript } from "./script";
 import { synthesizeToMp3 } from "./tts";
 
+const NEWS_ITEMS_PER_PROGRAM = 10;
+
 export type ProduceResult =
   | { status: "ok"; program: Program }
   | { status: "empty"; reason: "no-sources" | "no-fresh" };
@@ -60,7 +62,7 @@ export async function produceProgram(
     const cfg = await getConfig();
     const tNews = Date.now();
     const { items: news, candidateCount, seenCount } = await fetchNews(
-      5,
+      NEWS_ITEMS_PER_PROGRAM,
       cfg.enabledSources,
     );
     log.info(
