@@ -110,6 +110,8 @@ curl -s http://localhost:50021/speakers | jq '.[] | {name, styles: [.styles[] | 
 - **海外（英語、LLM で和訳）**: TechCrunch / The Verge / BBC News / Hacker News
 - **はてブ**: 総合 / Tech / 暮らし / 政治と経済 / おもしろ
 
+取得した記事は **カテゴリに均等にクォータを割り当て、カテゴリ内では各ソースからラウンドロビンで 1 件ずつ取る** ように選出する。フィード本数が多いカテゴリに結果が支配されないようにしている。
+
 各フィードは **SQLite に 10 分キャッシュ**し、同一ドメインのフィードは直列で叩いて相手側に負荷をかけないようにしている（`data/rss-cache.sqlite`）。
 
 過去 14 日に番組化済みの URL は SQLite (`seen_urls`) で除外しているので、同じニュースが繰り返し読まれない。

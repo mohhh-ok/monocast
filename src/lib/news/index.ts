@@ -1,6 +1,6 @@
 import { log } from "../log";
 import { createRssAdapter, type RssFeed } from "./adapters/rss";
-import type { NewsItem } from "./types";
+import { CATEGORY_ORDER, type NewsItem, type SourceCategory } from "./types";
 
 export type { NewsAdapter, NewsItem, SourceCategory, SourceOption } from "./types";
 export {
@@ -93,10 +93,76 @@ export async function fetchNews(
   if (seenUrls.size > 0)
     log.info("news", `既出URL除外 ${seenUrls.size}件 / 候補 ${dedup.length}件`);
 
-  // 軽くシャッフルして多様性を出す（決定的すぎないように）
-  fresh.sort(() => Math.random() - 0.5);
+  // カテゴリ→ソース別のバケットに振り分け、カテゴリ間で均等クォータ＋
+  // カテゴリ内ソース間ラウンドロビンで選出する。フィード本数が多いカテゴリに
+  // 結果が支配されるのを防ぐ。
+  const nameToCategory = new Map<string, SourceCategory>();
+  for (const f of feeds) nameToCategory.set(f.name, f.category);
+  const buckets = new Map<SourceCategory, Map<string, NewsItem[]>>();
+  for (const it of fresh) {
+    const cat = nameToCategory.get(it.source);
+    if (!cat) continue;
+    let catMap = buckets.get(cat);
+    if (!catMap) {
+      catMap = new Map();
+      buckets.set(cat, catMap);
+    }
+    const arr = catMap.get(it.source);
+    if (arr) arr.push(it);
+    else catMap.set(it.source, [it]);
+  }
+
+  const activeCategories = CATEGORY_ORDER.filter((c) => buckets.has(c));
+  if (activeCategories.length === 0)
+    return { items: [], candidateCount: dedup.length, seenCount: seenUrls.size };
+
+  const base = Math.floor(limit / activeCategories.length);
+  const remainder = limit % activeCategories.length;
+  const quotas = new Map<SourceCategory, number>();
+  activeCategories.forEach((c, i) => {
+    quotas.set(c, base + (i < remainder ? 1 : 0));
+  });
+
+  const selected: NewsItem[] = [];
+  const leftovers: NewsItem[][] = [];
+  for (const cat of activeCategories) {
+    const sources = Array.from(buckets.get(cat)!.values());
+    const quota = quotas.get(cat) ?? 0;
+    let taken = 0;
+    while (taken < quota) {
+      let progressed = false;
+      for (const arr of sources) {
+        if (arr.length === 0) continue;
+        const item = arr.shift();
+        if (!item) continue;
+        selected.push(item);
+        taken += 1;
+        progressed = true;
+        if (taken >= quota) break;
+      }
+      if (!progressed) break;
+    }
+    const rest: NewsItem[] = [];
+    for (const arr of sources) rest.push(...arr);
+    if (rest.length > 0) leftovers.push(rest);
+  }
+
+  // クォータが他カテゴリの不足で埋まらなかった分を、残り在庫からラウンドロビンで補充
+  while (selected.length < limit && leftovers.some((a) => a.length > 0)) {
+    let progressed = false;
+    for (const arr of leftovers) {
+      if (arr.length === 0) continue;
+      const item = arr.shift();
+      if (!item) continue;
+      selected.push(item);
+      progressed = true;
+      if (selected.length >= limit) break;
+    }
+    if (!progressed) break;
+  }
+
   return {
-    items: fresh.slice(0, limit),
+    items: selected,
     candidateCount: dedup.length,
     seenCount: seenUrls.size,
   };
