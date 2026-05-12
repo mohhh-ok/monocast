@@ -1,12 +1,19 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { LLM_IDS, type Config, type LlmId } from "@/config.shared";
-import { CATEGORY_LABELS, CATEGORY_ORDER, type SourceCategory } from "@/lib/news";
+import { LLM_IDS, TTS_IDS, type Config, type LlmId, type TtsId } from "@/config.shared";
 import {
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  SourceCategorySchema,
+  type SourceCategory,
+} from "@/lib/news";
+import {
+  fetchSayVoicesFn,
   fetchSpeakersFn,
   listSourcesFn,
   loadConfigFn,
   updateConfigFn,
+  type SayVoiceOption,
   type SourceOption,
   type SpeakerOption,
 } from "@/server/settings";
@@ -24,19 +31,24 @@ type Props = {
 export function SettingsPanel({ onClose }: Props) {
   const [cfg, setCfg] = useState<Config | null>(null);
   const [speakers, setSpeakers] = useState<SpeakerOption[]>([]);
+  const [sayVoices, setSayVoices] = useState<SayVoiceOption[]>([]);
   const [sources, setSources] = useState<SourceOption[]>([]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([loadConfigFn(), fetchSpeakersFn(), listSourcesFn()]).then(
-      ([c, sp, src]) => {
-        if (cancelled) return;
-        setCfg(c);
-        setSpeakers(sp);
-        setSources(src);
-      },
-    );
+    Promise.all([
+      loadConfigFn(),
+      fetchSpeakersFn(),
+      fetchSayVoicesFn(),
+      listSourcesFn(),
+    ]).then(([c, sp, sv, src]) => {
+      if (cancelled) return;
+      setCfg(c);
+      setSpeakers(sp);
+      setSayVoices(sv);
+      setSources(src);
+    });
     return () => {
       cancelled = true;
     };
@@ -48,12 +60,15 @@ export function SettingsPanel({ onClose }: Props) {
 
   const sourcesByCategory = useMemo(() => {
     const map: Record<SourceCategory, SourceOption[]> = {
-      domestic: [],
+      japanese: [],
       tech: [],
       overseas: [],
       hatena: [],
     };
-    for (const s of sources) map[s.category].push(s);
+    for (const s of sources) {
+      const cat = SourceCategorySchema.safeParse(s.category);
+      if (cat.success) map[cat.data].push(s);
+    }
     return map;
   }, [sources]);
 
@@ -100,13 +115,8 @@ export function SettingsPanel({ onClose }: Props) {
 
   const resetSources = () => update("enabledSources", null);
 
-  const toggleLlm = (id: LlmId) => {
-    const has = cfg.selectedLlms.includes(id);
-    update(
-      "selectedLlms",
-      has ? cfg.selectedLlms.filter((x) => x !== id) : [...cfg.selectedLlms, id],
-    );
-  };
+  const selectLlm = (id: LlmId) => update("selectedLlm", id);
+  const selectTts = (id: TtsId) => update("selectedTts", id);
 
   const onSave = async () => {
     setStatus({ kind: "saving" });
@@ -123,6 +133,11 @@ export function SettingsPanel({ onClose }: Props) {
   const refreshSpeakers = async () => {
     const list = await fetchSpeakersFn();
     setSpeakers(list);
+  };
+
+  const refreshSayVoices = async () => {
+    const list = await fetchSayVoicesFn();
+    setSayVoices(list);
   };
 
   return (
@@ -149,15 +164,16 @@ export function SettingsPanel({ onClose }: Props) {
 
         <Field
           label="使用する LLM"
-          hint="チェックした数だけ番組が生成されます。各 API キーは環境変数で設定してください。"
+          hint="API キーは環境変数で設定してください。"
         >
           <div style={{ display: "grid", gap: 6 }}>
             {LLM_IDS.map((id) => (
               <label key={id} style={sourceItemStyle}>
                 <input
-                  type="checkbox"
-                  checked={cfg.selectedLlms.includes(id)}
-                  onChange={() => toggleLlm(id)}
+                  type="radio"
+                  name="selectedLlm"
+                  checked={cfg.selectedLlm === id}
+                  onChange={() => selectLlm(id)}
                 />
                 <span style={{ fontSize: 13, color: "#cbd2ee" }}>
                   {LLM_LABELS[id]}
@@ -167,40 +183,58 @@ export function SettingsPanel({ onClose }: Props) {
           </div>
         </Field>
 
-        {cfg.selectedLlms.includes("anthropic") && (
-          <Field label="Anthropic モデル" hint="API キー: ANTHROPIC_API_KEY">
+        {cfg.selectedLlm === "anthropic" && (
+          <Field label="Anthropic モデル" hint="API キー: ANTHROPIC_API_KEY / 候補は目安・自由入力可">
             <input
               type="text"
+              list="anthropic-models"
               value={cfg.anthropicModel}
               onChange={(e) => update("anthropicModel", e.target.value)}
               style={inputStyle}
             />
+            <datalist id="anthropic-models">
+              {ANTHROPIC_MODELS.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
           </Field>
         )}
 
-        {cfg.selectedLlms.includes("openai") && (
-          <Field label="OpenAI モデル" hint="API キー: OPENAI_API_KEY">
+        {cfg.selectedLlm === "openai" && (
+          <Field label="OpenAI モデル" hint="API キー: OPENAI_API_KEY / 候補は目安・自由入力可">
             <input
               type="text"
+              list="openai-models"
               value={cfg.openaiModel}
               onChange={(e) => update("openaiModel", e.target.value)}
               style={inputStyle}
             />
+            <datalist id="openai-models">
+              {OPENAI_MODELS.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
           </Field>
         )}
 
-        {cfg.selectedLlms.includes("gemini") && (
-          <Field label="Gemini モデル" hint="API キー: GEMINI_API_KEY">
+        {cfg.selectedLlm === "gemini" && (
+          <Field label="Gemini モデル" hint="API キー: GEMINI_API_KEY / 候補は目安・自由入力可">
             <input
               type="text"
+              list="gemini-models"
               value={cfg.geminiModel}
               onChange={(e) => update("geminiModel", e.target.value)}
               style={inputStyle}
             />
+            <datalist id="gemini-models">
+              {GEMINI_MODELS.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
           </Field>
         )}
 
-        {cfg.selectedLlms.includes("ollama") && (
+        {cfg.selectedLlm === "ollama" && (
           <>
             <Field
               label="Ollama URL"
@@ -213,66 +247,148 @@ export function SettingsPanel({ onClose }: Props) {
                 style={inputStyle}
               />
             </Field>
-            <Field label="Ollama モデル">
+            <Field label="Ollama モデル" hint="ローカルに pull 済みのモデル名を入力（候補はあくまで参考）">
               <input
                 type="text"
+                list="ollama-models"
                 value={cfg.ollamaModel}
                 onChange={(e) => update("ollamaModel", e.target.value)}
+                style={inputStyle}
+              />
+              <datalist id="ollama-models">
+                {OLLAMA_MODELS.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
+            </Field>
+          </>
+        )}
+      </section>
+
+      <section style={cardStyle}>
+        <h2 style={sectionStyle}>音声合成</h2>
+
+        <Field label="使用するエンジン">
+          <div style={{ display: "grid", gap: 6 }}>
+            {TTS_IDS.map((id) => (
+              <label key={id} style={sourceItemStyle}>
+                <input
+                  type="radio"
+                  name="selectedTts"
+                  checked={cfg.selectedTts === id}
+                  onChange={() => selectTts(id)}
+                />
+                <span style={{ fontSize: 13, color: "#cbd2ee" }}>
+                  {TTS_LABELS[id]}
+                </span>
+              </label>
+            ))}
+          </div>
+        </Field>
+
+        {cfg.selectedTts === "voicevox" && (
+          <>
+            <Field label="VOICEVOX URL">
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="url"
+                  value={cfg.voicevoxUrl}
+                  onChange={(e) => update("voicevoxUrl", e.target.value)}
+                  style={inputStyle}
+                />
+                <button type="button" onClick={refreshSpeakers} style={btnStyle()}>
+                  話者を再取得
+                </button>
+              </div>
+            </Field>
+
+            <Field
+              label="話者"
+              hint={
+                speakers.length === 0
+                  ? "VOICEVOX に接続できない場合は ID を直接入力"
+                  : undefined
+              }
+            >
+              {speakers.length > 0 ? (
+                <select
+                  value={cfg.voicevoxSpeaker}
+                  onChange={(e) =>
+                    update("voicevoxSpeaker", Number(e.target.value))
+                  }
+                  style={inputStyle}
+                >
+                  {speakers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label} (id: {s.id})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="number"
+                  value={cfg.voicevoxSpeaker}
+                  onChange={(e) =>
+                    update("voicevoxSpeaker", Number(e.target.value))
+                  }
+                  style={inputStyle}
+                />
+              )}
+            </Field>
+          </>
+        )}
+
+        {cfg.selectedTts === "say" && (
+          <>
+            <Field
+              label="Voice"
+              hint={
+                sayVoices.length === 0
+                  ? "macOS 以外、または say コマンドが利用できない可能性があります"
+                  : "ja_JP の voice (Kyoko / Otoya 等) を選ぶと日本語が自然に発話されます"
+              }
+            >
+              <div style={{ display: "flex", gap: 8 }}>
+                {sayVoices.length > 0 ? (
+                  <select
+                    value={cfg.sayVoice}
+                    onChange={(e) => update("sayVoice", e.target.value)}
+                    style={inputStyle}
+                  >
+                    <option value="">(システム既定)</option>
+                    {sayVoices.map((v) => (
+                      <option key={v.name} value={v.name}>
+                        {v.name} ({v.locale})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={cfg.sayVoice}
+                    onChange={(e) => update("sayVoice", e.target.value)}
+                    placeholder="Kyoko"
+                    style={inputStyle}
+                  />
+                )}
+                <button type="button" onClick={refreshSayVoices} style={btnStyle()}>
+                  再取得
+                </button>
+              </div>
+            </Field>
+
+            <Field label="発話速度 (words/min)" hint="既定 180。大きいほど速く読み上げます。">
+              <input
+                type="number"
+                min={50}
+                max={500}
+                value={cfg.sayRate}
+                onChange={(e) => update("sayRate", Number(e.target.value))}
                 style={inputStyle}
               />
             </Field>
           </>
         )}
-
-        {cfg.selectedLlms.length === 0 && (
-          <div style={{ fontSize: 12, color: "#ffb8c0", marginTop: 8 }}>
-            LLM が選択されていません。番組生成は失敗します。
-          </div>
-        )}
-      </section>
-
-      <section style={cardStyle}>
-        <h2 style={sectionStyle}>音声合成 (VOICEVOX)</h2>
-
-        <Field label="VOICEVOX URL">
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              type="url"
-              value={cfg.voicevoxUrl}
-              onChange={(e) => update("voicevoxUrl", e.target.value)}
-              style={inputStyle}
-            />
-            <button type="button" onClick={refreshSpeakers} style={btnStyle()}>
-              話者を再取得
-            </button>
-          </div>
-        </Field>
-
-        <Field
-          label="話者"
-          hint={speakers.length === 0 ? "VOICEVOX に接続できない場合は ID を直接入力" : undefined}
-        >
-          {speakers.length > 0 ? (
-            <select
-              value={cfg.voicevoxSpeaker}
-              onChange={(e) => update("voicevoxSpeaker", Number(e.target.value))}
-              style={inputStyle}
-            >
-              {speakers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label} (id: {s.id})
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              type="number"
-              value={cfg.voicevoxSpeaker}
-              onChange={(e) => update("voicevoxSpeaker", Number(e.target.value))}
-              style={inputStyle}
-            />
-          )}
-        </Field>
       </section>
 
       <section style={cardStyle}>
@@ -401,6 +517,42 @@ const LLM_LABELS: Record<LlmId, string> = {
   gemini: "Gemini",
   ollama: "Ollama (ローカル)",
 };
+
+const TTS_LABELS: Record<TtsId, string> = {
+  voicevox: "VOICEVOX",
+  say: "macOS say",
+};
+
+// 安い順に列挙（2026-05 時点・公式公開価格ベース）
+const ANTHROPIC_MODELS = [
+  "claude-haiku-4-5", // $1 / $5 (cheapest current)
+  "claude-sonnet-4-6", // $3 / $15
+  "claude-opus-4-7", // $5 / $25
+] as const;
+
+const OPENAI_MODELS = [
+  "gpt-4.1-nano", // $0.10 / $0.40 (cheapest)
+  "gpt-4o-mini", // $0.15 / $0.60
+  "gpt-4.1-mini",
+  "gpt-4.1",
+  "gpt-4o",
+] as const;
+
+const GEMINI_MODELS = [
+  "gemini-2.5-flash-lite", // $0.10 / $0.40 (cheapest)
+  "gemini-2.5-flash",
+  "gemini-3.1-flash-lite",
+] as const;
+
+// ローカル実行（無料）。軽量・日本語要約向けを上から
+const OLLAMA_MODELS = [
+  "qwen2.5:3b-instruct", // 軽量 + 日本語OK
+  "qwen2.5:7b-instruct",
+  "llama3.2:3b",
+  "phi3:mini",
+  "mistral:7b",
+  "llama3.1:8b",
+] as const;
 
 const eyebrowStyle: React.CSSProperties = {
   fontSize: 12,

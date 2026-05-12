@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { getConfig } from "@/config";
+import { createSayAdapter } from "./adapters/say";
 import { createVoicevoxAdapter } from "./adapters/voicevox";
 import type { TtsAdapter } from "./types";
 
@@ -40,10 +41,18 @@ function runFfmpeg(args: string[]): Promise<void> {
 
 async function pickAdapter(): Promise<TtsAdapter> {
   const cfg = await getConfig();
-  return createVoicevoxAdapter({
-    voicevoxUrl: cfg.voicevoxUrl,
-    speaker: cfg.voicevoxSpeaker,
-  });
+  switch (cfg.selectedTts) {
+    case "say":
+      return createSayAdapter({
+        voice: cfg.sayVoice || undefined,
+        rate: cfg.sayRate,
+      });
+    case "voicevox":
+      return createVoicevoxAdapter({
+        voicevoxUrl: cfg.voicevoxUrl,
+        speaker: cfg.voicevoxSpeaker,
+      });
+  }
 }
 
 /**

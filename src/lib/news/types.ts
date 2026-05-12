@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export type NewsItem = {
   title: string;
   link: string;
@@ -13,18 +15,27 @@ export type NewsAdapter = {
   fetch(limit: number): Promise<NewsItem[]>;
 };
 
-export type SourceCategory = "domestic" | "tech" | "overseas" | "hatena";
+export const SOURCE_CATEGORIES = ["japanese", "tech", "overseas", "hatena"] as const;
+export const SourceCategorySchema = z.enum(SOURCE_CATEGORIES);
+export type SourceCategory = z.infer<typeof SourceCategorySchema>;
 
 export const CATEGORY_LABELS: Record<SourceCategory, string> = {
-  domestic: "国内",
+  japanese: "日本語ニュース",
   tech: "テック",
   overseas: "海外",
   hatena: "はてブ",
 };
 
 export const CATEGORY_ORDER: readonly SourceCategory[] = [
-  "domestic",
+  "japanese",
   "tech",
   "overseas",
   "hatena",
 ];
+
+export const SourceOptionSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  category: SourceCategorySchema,
+});
+export type SourceOption = z.infer<typeof SourceOptionSchema>;

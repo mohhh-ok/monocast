@@ -1,13 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { pickAdapters } from "@/lib/llm";
+import { pickAdapter } from "@/lib/llm";
 import { produceProgram } from "@/lib/produce";
 import { listPrograms, removeProgram, type Program } from "@/lib/queue";
 
 let inFlight: Promise<GenerateResult> | null = null;
 
 export type GenerateResult =
-  | { status: "ok"; programs: Program[] }
+  | { status: "ok"; program: Program }
   | { status: "empty" }
   | { status: "already-running" }
   | { status: "error"; message: string };
@@ -17,25 +17,10 @@ export const generateProgramFn = createServerFn({ method: "POST" }).handler(
     if (inFlight) return { status: "already-running" };
 
     const task = (async (): Promise<GenerateResult> => {
-      const adapters = await pickAdapters();
-      if (adapters.length === 0) {
-        return {
-          status: "error",
-          message: "使用する LLM が選択されていません。設定から 1 つ以上選んでください。",
-        };
-      }
-
-      const produced: Program[] = [];
-      let sawEmpty = false;
-      for (const adapter of adapters) {
-        const r = await produceProgram(adapter);
-        if (r.status === "ok") produced.push(r.program);
-        else sawEmpty = true;
-      }
-      if (produced.length === 0) {
-        return sawEmpty ? { status: "empty" } : { status: "empty" };
-      }
-      return { status: "ok", programs: produced };
+      const adapter = await pickAdapter();
+      const r = await produceProgram(adapter);
+      if (r.status === "empty") return { status: "empty" };
+      return { status: "ok", program: r.program };
     })().finally(() => {
       inFlight = null;
     });

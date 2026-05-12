@@ -4,12 +4,14 @@ import {
   ConfigSchema,
   DEFAULT_CONFIG,
   LLM_IDS,
+  TTS_IDS,
   type Config,
   type LlmId,
+  type TtsId,
 } from "./config.shared";
 
-export { ConfigSchema, DEFAULT_CONFIG, LLM_IDS };
-export type { Config, LlmId };
+export { ConfigSchema, DEFAULT_CONFIG, LLM_IDS, TTS_IDS };
+export type { Config, LlmId, TtsId };
 
 const CONFIG_PATH = path.join(process.cwd(), "data", "config.json");
 

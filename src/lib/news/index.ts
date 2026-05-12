@@ -1,20 +1,26 @@
 import { createRssAdapter, type RssFeed } from "./adapters/rss";
 import type { NewsItem } from "./types";
 
-export type { NewsAdapter, NewsItem, SourceCategory } from "./types";
-export { CATEGORY_LABELS, CATEGORY_ORDER } from "./types";
+export type { NewsAdapter, NewsItem, SourceCategory, SourceOption } from "./types";
+export {
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  SOURCE_CATEGORIES,
+  SourceCategorySchema,
+  SourceOptionSchema,
+} from "./types";
 export type { RssFeed } from "./adapters/rss";
 
 export const SOURCES: readonly RssFeed[] = [
   // NHK
-  { id: "nhk-cat0", name: "NHK 主要", url: "https://www.nhk.or.jp/rss/news/cat0.xml", category: "domestic" },
-  { id: "nhk-cat1", name: "NHK 社会", url: "https://www.nhk.or.jp/rss/news/cat1.xml", category: "domestic" },
-  { id: "nhk-cat2", name: "NHK 文化", url: "https://www.nhk.or.jp/rss/news/cat2.xml", category: "domestic" },
-  { id: "nhk-cat3", name: "NHK 科学医療", url: "https://www.nhk.or.jp/rss/news/cat3.xml", category: "domestic" },
-  { id: "nhk-cat5", name: "NHK 経済", url: "https://www.nhk.or.jp/rss/news/cat5.xml", category: "domestic" },
-  { id: "nhk-cat6", name: "NHK 国際", url: "https://www.nhk.or.jp/rss/news/cat6.xml", category: "domestic" },
-  { id: "nhk-cat7", name: "NHK スポーツ", url: "https://www.nhk.or.jp/rss/news/cat7.xml", category: "domestic" },
-  { id: "bbc-ja", name: "BBC 日本語", url: "https://feeds.bbci.co.uk/japanese/rss.xml", category: "domestic" },
+  { id: "nhk-cat0", name: "NHK 主要", url: "https://www.nhk.or.jp/rss/news/cat0.xml", category: "japanese" },
+  { id: "nhk-cat1", name: "NHK 社会", url: "https://www.nhk.or.jp/rss/news/cat1.xml", category: "japanese" },
+  { id: "nhk-cat2", name: "NHK 文化", url: "https://www.nhk.or.jp/rss/news/cat2.xml", category: "japanese" },
+  { id: "nhk-cat3", name: "NHK 科学医療", url: "https://www.nhk.or.jp/rss/news/cat3.xml", category: "japanese" },
+  { id: "nhk-cat5", name: "NHK 経済", url: "https://www.nhk.or.jp/rss/news/cat5.xml", category: "japanese" },
+  { id: "nhk-cat6", name: "NHK 国際", url: "https://www.nhk.or.jp/rss/news/cat6.xml", category: "japanese" },
+  { id: "nhk-cat7", name: "NHK スポーツ", url: "https://www.nhk.or.jp/rss/news/cat7.xml", category: "japanese" },
+  { id: "bbc-ja", name: "BBC 日本語", url: "https://feeds.bbci.co.uk/japanese/rss.xml", category: "japanese" },
   // テック
   { id: "publickey", name: "Publickey", url: "https://www.publickey1.jp/atom.xml", category: "tech" },
   { id: "itmedia", name: "ITmedia NEWS", url: "https://rss.itmedia.co.jp/rss/2.0/news.xml", category: "tech" },

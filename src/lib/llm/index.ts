@@ -7,16 +7,11 @@ import type { LlmAdapter, LlmId } from "./types";
 
 export type { LlmAdapter, LlmGenerateInput, LlmGenerateOutput, LlmId } from "./types";
 
-/** 設定で選択されている LLM 群を adapter として返す。 */
-export async function pickAdapters(): Promise<LlmAdapter[]> {
+/** 設定で選択されている LLM を adapter として返す。 */
+export async function pickAdapter(): Promise<LlmAdapter> {
   const cfg = await getConfig();
   const env = getEnv();
-  const adapters: LlmAdapter[] = [];
-
-  for (const id of cfg.selectedLlms) {
-    adapters.push(buildAdapter(id, cfg, env));
-  }
-  return adapters;
+  return buildAdapter(cfg.selectedLlm, cfg, env);
 }
 
 type CfgLike = Awaited<ReturnType<typeof getConfig>>;
