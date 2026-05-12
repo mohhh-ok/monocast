@@ -60,7 +60,7 @@ export async function produceProgram(
     const cfg = await getConfig();
     const tNews = Date.now();
     const { items: news, candidateCount, seenCount } = await fetchNews(
-      10,
+      5,
       cfg.enabledSources,
     );
     log.info(
