@@ -26,7 +26,7 @@ export function createOllamaAdapter(opts: OllamaAdapterOptions): LlmAdapter {
           model,
           stream: false,
           format: schema,
-          options: { temperature: 0.7, num_predict: 2048 },
+          options: { temperature: 0.7, num_predict: 4096 },
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
@@ -41,12 +41,17 @@ export function createOllamaAdapter(opts: OllamaAdapterOptions): LlmAdapter {
 
       const data = (await res.json()) as {
         message?: { content?: string };
+        done_reason?: string;
       };
       const content = data.message?.content ?? "";
       try {
         return JSON.parse(content) as LlmGenerateOutput;
       } catch {
-        throw new Error(`ollama JSON parse failed: ${content.slice(0, 200)}`);
+        const head = content.slice(0, 200);
+        const tail = content.length > 400 ? content.slice(-200) : "";
+        throw new Error(
+          `ollama JSON parse failed (len=${content.length}, done_reason=${data.done_reason ?? "?"}): head=${head}${tail ? ` ... tail=${tail}` : ""}`,
+        );
       }
     },
   };
