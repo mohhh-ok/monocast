@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { type Config } from "@/config.shared";
 import {
   fetchAivisSpeakersFn,
+  fetchSapiVoicesFn,
   fetchSayVoicesFn,
   fetchSpeakersFn,
   listProfilesFn,
@@ -11,6 +12,7 @@ import {
   renameProfileFn,
   updateConfigFn,
   type ProfilesState,
+  type SapiVoiceOption,
   type SayVoiceOption,
   type SourceOption,
   type SpeakerOption,
@@ -40,6 +42,7 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
   const [speakers, setSpeakers] = useState<SpeakerOption[]>([]);
   const [aivisSpeakers, setAivisSpeakers] = useState<SpeakerOption[]>([]);
   const [sayVoices, setSayVoices] = useState<SayVoiceOption[]>([]);
+  const [sapiVoices, setSapiVoices] = useState<SapiVoiceOption[]>([]);
   const [sources, setSources] = useState<SourceOption[]>([]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
@@ -60,8 +63,9 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
       fetchSpeakersFn(),
       fetchAivisSpeakersFn(),
       fetchSayVoicesFn(),
+      fetchSapiVoicesFn(),
       listSourcesFn(),
-    ]).then(([c, pf, sp, asp, sv, src]) => {
+    ]).then(([c, pf, sp, asp, sv, sapi, src]) => {
       if (cancelled) return;
       setCfg(c);
       editingProfileIdRef.current = pf.activeProfileId;
@@ -70,6 +74,7 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
       setSpeakers(sp);
       setAivisSpeakers(asp);
       setSayVoices(sv);
+      setSapiVoices(sapi);
       setSources(src);
     });
     return () => {
@@ -200,6 +205,8 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
         setAivisSpeakers={setAivisSpeakers}
         sayVoices={sayVoices}
         setSayVoices={setSayVoices}
+        sapiVoices={sapiVoices}
+        setSapiVoices={setSapiVoices}
       />
 
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>

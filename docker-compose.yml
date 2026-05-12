@@ -1,0 +1,22 @@
+services:
+  voicevox:
+    image: voicevox/voicevox_engine:cpu-latest
+    profiles: [voicevox]
+    ports:
+      - "50021:50021"
+    restart: unless-stopped
+
+  aivisspeech:
+    image: ghcr.io/aivis-project/aivisspeech-engine:cpu-latest
+    profiles: [aivisspeech]
+    ports:
+      - "10101:10101"
+    restart: unless-stopped
+
+  # Kokoro-FastAPI: 多言語対応 (en/ja/zh/...)。CPU 版。GPU を使うなら gpu-latest に切り替え。
+  kokoro:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    profiles: [kokoro]
+    ports:
+      - "8880:8880"
+    restart: unless-stopped

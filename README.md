@@ -12,8 +12,9 @@ RSS (NHK / はてブ / 海外テック など) → LLM で台本 → TTS で合�
 
 ```bash
 npm install
-cp .env.local.example .env.local   # 使うクラウド API のキーだけ入れる
-npm run dev                        # http://localhost:3000
+cp .env.local.example .env.local           # 使うクラウド API のキーだけ入れる
+docker compose --profile voicevox up -d    # TTS エンジンを起動（後述）
+npm run dev                                # http://localhost:3000
 ```
 
 ブラウザを開くと最初の番組を自動生成して再生し始める。キューが 2 本未満になると裏で補充される。プロバイダ・モデル・話者などはトップ画面の PROFILE バーの「編集」から切り替えられる（プロファイル単位で保存）。
@@ -24,11 +25,12 @@ npm run dev                        # http://localhost:3000
 - LLM プロバイダのいずれか
   - Anthropic API キー / OpenAI API キー / Google Gemini API キー
   - もしくは Ollama（ローカル LLM、無料）
-- TTS エンジンのいずれか
-  - VOICEVOX / AivisSpeech（ローカルで起動）
+- TTS エンジンのいずれか（Docker 推奨）
+  - VOICEVOX / AivisSpeech（日本語特化、Docker 1 コマンドで起動）
+  - Kokoro（多言語、Docker 1 コマンドで起動）
   - macOS の `say` コマンド（macOS のみ・追加インストール不要）
   - OpenAI TTS / ElevenLabs（API キーが必要）
-  - Piper（ローカル、オフライン）
+- Docker / Docker Desktop（ローカル TTS を使う場合）
 
 ## セットアップ
 
@@ -69,17 +71,31 @@ ollama pull qwen2.5:3b-instruct          # 既定（軽量・日本語OK）
 
 | ID | デフォルト | 備考 |
 | --- | --- | --- |
-| `voicevox` (既定) | `http://localhost:50021` / 話者 `2`（四国めたん） | 別途 VOICEVOX エンジンを起動 |
-| `aivisspeech` | `http://localhost:10101` | VOICEVOX 互換 API |
+| `voicevox` (既定) | `http://localhost:50021` / 話者 `2`（四国めたん） | 日本語特化。Docker で起動 |
+| `aivisspeech` | `http://localhost:10101` | VOICEVOX 互換 API。Docker で起動 |
+| `kokoro` | `http://localhost:8880` / `af_heart` | 多言語（en/ja/zh ほか）。Docker で起動 |
 | `say` | システム既定の声 / 180wpm | macOS 内蔵、追加不要 |
 | `openai` | `gpt-4o-mini-tts` / `alloy` | `OPENAI_API_KEY` |
 | `elevenlabs` | `eleven_turbo_v2_5` / `21m00Tcm4TlvDq8ikWAM` | `ELEVENLABS_API_KEY` |
-| `piper` | `piper` バイナリ + モデルファイルのパス | オフライン |
+
+ローカル TTS は同梱の `docker-compose.yml` を profile 指定で起動できる:
+
+```bash
+docker compose --profile voicevox up -d        # 日本語ナレーション（既定）
+docker compose --profile aivisspeech up -d     # VOICEVOX 互換、別キャラ
+docker compose --profile kokoro up -d          # 多言語、英語/日本語/中国語
+```
 
 VOICEVOX の話者 ID 一覧:
 
 ```bash
 curl -s http://localhost:50021/speakers | jq '.[] | {name, styles: [.styles[] | {name, id}]}'
+```
+
+Kokoro の voice 一覧:
+
+```bash
+curl -s http://localhost:8880/v1/audio/voices | jq
 ```
 
 ### ニュースソース

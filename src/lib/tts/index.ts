@@ -4,8 +4,9 @@ import { getConfig } from "@/config";
 import { getEnv } from "@/lib/env";
 import { createAivisSpeechAdapter } from "./adapters/aivisspeech";
 import { createElevenLabsAdapter } from "./adapters/elevenlabs";
+import { createKokoroAdapter } from "./adapters/kokoro";
 import { createOpenAiTtsAdapter } from "./adapters/openai";
-import { createPiperAdapter } from "./adapters/piper";
+import { createSapiAdapter } from "./adapters/sapi";
 import { createSayAdapter } from "./adapters/say";
 import { createVoicevoxAdapter } from "./adapters/voicevox";
 import { log } from "../log";
@@ -45,6 +46,11 @@ async function pickAdapter(cfg: Awaited<ReturnType<typeof getConfig>>): Promise<
         voice: cfg.sayVoice || undefined,
         rate: cfg.sayRate,
       });
+    case "sapi":
+      return createSapiAdapter({
+        voice: cfg.sapiVoice || undefined,
+        rate: cfg.sapiRate,
+      });
     case "voicevox":
       return createVoicevoxAdapter({
         voicevoxUrl: cfg.voicevoxUrl,
@@ -77,14 +83,10 @@ async function pickAdapter(cfg: Awaited<ReturnType<typeof getConfig>>): Promise<
         voiceId: cfg.elevenlabsVoiceId,
       });
     }
-    case "piper":
-      if (!cfg.piperModelPath) {
-        throw new Error("Piper の voice model パス (piperModelPath) が未設定です");
-      }
-      return createPiperAdapter({
-        bin: cfg.piperBin,
-        modelPath: cfg.piperModelPath,
-        speakerId: cfg.piperSpeakerId,
+    case "kokoro":
+      return createKokoroAdapter({
+        url: cfg.kokoroUrl,
+        voice: cfg.kokoroVoice,
       });
   }
 }

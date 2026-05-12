@@ -1,14 +1,19 @@
 import { TTS_IDS, type Config, type TtsId } from "@/config.shared";
 import {
   fetchAivisSpeakersFn,
+  fetchSapiVoicesFn,
   fetchSayVoicesFn,
   fetchSpeakersFn,
+  type SapiVoiceOption,
   type SayVoiceOption,
   type SpeakerOption,
 } from "@/server/settings";
+import { DockerHint } from "./DockerHint";
+import { EngineStatus } from "./EngineStatus";
 import { Field } from "./Field";
 import {
   ELEVENLABS_MODELS,
+  KOKORO_VOICES,
   OPENAI_TTS_MODELS,
   OPENAI_TTS_VOICES,
   TTS_LABELS,
@@ -24,6 +29,8 @@ type Props = {
   setAivisSpeakers: (list: SpeakerOption[]) => void;
   sayVoices: SayVoiceOption[];
   setSayVoices: (list: SayVoiceOption[]) => void;
+  sapiVoices: SapiVoiceOption[];
+  setSapiVoices: (list: SapiVoiceOption[]) => void;
 };
 
 export function TtsSection({
@@ -35,6 +42,8 @@ export function TtsSection({
   setAivisSpeakers,
   sayVoices,
   setSayVoices,
+  sapiVoices,
+  setSapiVoices,
 }: Props) {
   const refreshSpeakers = async () => {
     setSpeakers(await fetchSpeakersFn());
@@ -46,6 +55,9 @@ export function TtsSection({
   };
   const refreshSayVoices = async () => {
     setSayVoices(await fetchSayVoicesFn());
+  };
+  const refreshSapiVoices = async () => {
+    setSapiVoices(await fetchSapiVoicesFn());
   };
 
   return (
@@ -88,6 +100,8 @@ export function TtsSection({
                 話者を再取得
               </button>
             </div>
+            <EngineStatus id="voicevox" url={cfg.voicevoxUrl} />
+            <DockerHint profile="voicevox" />
           </Field>
 
           <Field
@@ -144,6 +158,8 @@ export function TtsSection({
                 話者を再取得
               </button>
             </div>
+            <EngineStatus id="aivisspeech" url={cfg.aivisSpeechUrl} />
+            <DockerHint profile="aivisspeech" />
           </Field>
 
           <Field
@@ -252,44 +268,34 @@ export function TtsSection({
         </>
       )}
 
-      {cfg.selectedTts === "piper" && (
+      {cfg.selectedTts === "kokoro" && (
         <>
+          <Field label="Kokoro-FastAPI URL" hint="既定ポートは 8880">
+            <input
+              type="url"
+              value={cfg.kokoroUrl}
+              onChange={(e) => update("kokoroUrl", e.target.value)}
+              style={inputStyle}
+            />
+            <EngineStatus id="kokoro" url={cfg.kokoroUrl} />
+            <DockerHint profile="kokoro" />
+          </Field>
           <Field
-            label="Piper バイナリ"
-            hint="PATH が通っていれば 'piper' のままで OK。フルパスも可。"
+            label="Voice"
+            hint="jf_/jm_=日本語, af_/am_=英語(米), bf_/bm_=英語(英), zf_/zm_=中国語。自由入力可。"
           >
             <input
               type="text"
-              value={cfg.piperBin}
-              onChange={(e) => update("piperBin", e.target.value)}
+              list="kokoro-voices"
+              value={cfg.kokoroVoice}
+              onChange={(e) => update("kokoroVoice", e.target.value)}
               style={inputStyle}
             />
-          </Field>
-          <Field
-            label="Voice model (.onnx) のパス"
-            hint="huggingface.co/rhasspy/piper-voices などから取得した .onnx を絶対パスで指定"
-          >
-            <input
-              type="text"
-              value={cfg.piperModelPath}
-              onChange={(e) => update("piperModelPath", e.target.value)}
-              placeholder="/path/to/ja_JP-voice.onnx"
-              style={inputStyle}
-            />
-          </Field>
-          <Field
-            label="Speaker ID (任意)"
-            hint="multi-speaker モデルの場合のみ指定"
-          >
-            <input
-              type="number"
-              value={cfg.piperSpeakerId ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                update("piperSpeakerId", v === "" ? undefined : Number(v));
-              }}
-              style={inputStyle}
-            />
+            <datalist id="kokoro-voices">
+              {KOKORO_VOICES.map((v) => (
+                <option key={v} value={v} />
+              ))}
+            </datalist>
           </Field>
         </>
       )}
@@ -347,6 +353,65 @@ export function TtsSection({
               max={500}
               value={cfg.sayRate}
               onChange={(e) => update("sayRate", Number(e.target.value))}
+              style={inputStyle}
+            />
+          </Field>
+        </>
+      )}
+
+      {cfg.selectedTts === "sapi" && (
+        <>
+          <Field
+            label="Voice"
+            hint={
+              sapiVoices.length === 0
+                ? "Windows 以外、または PowerShell が利用できない可能性があります"
+                : "ja-JP の voice (Haruka / Ayumi / Ichiro 等) を選ぶと日本語が自然に発話されます"
+            }
+          >
+            <div style={{ display: "flex", gap: 8 }}>
+              {sapiVoices.length > 0 ? (
+                <select
+                  value={cfg.sapiVoice}
+                  onChange={(e) => update("sapiVoice", e.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="">(システム既定)</option>
+                  {sapiVoices.map((v) => (
+                    <option key={v.name} value={v.name}>
+                      {v.name} ({v.locale})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={cfg.sapiVoice}
+                  onChange={(e) => update("sapiVoice", e.target.value)}
+                  placeholder="Microsoft Haruka Desktop"
+                  style={inputStyle}
+                />
+              )}
+              <button
+                type="button"
+                onClick={refreshSapiVoices}
+                style={btnStyle()}
+              >
+                再取得
+              </button>
+            </div>
+          </Field>
+
+          <Field
+            label="発話速度 (-10..10)"
+            hint="0 が標準。負で遅く、正で速く読み上げます。"
+          >
+            <input
+              type="number"
+              min={-10}
+              max={10}
+              value={cfg.sapiRate}
+              onChange={(e) => update("sapiRate", Number(e.target.value))}
               style={inputStyle}
             />
           </Field>

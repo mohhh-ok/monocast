@@ -41,6 +41,8 @@ const TTS_KEYS: ReadonlyArray<keyof Config> = [
   "aivisSpeechSpeaker",
   "sayVoice",
   "sayRate",
+  "sapiVoice",
+  "sapiRate",
   "openaiTtsModel",
   "openaiTtsVoice",
   "elevenlabsModelId",
@@ -86,6 +88,8 @@ export type ProfilesResult =
 export type SpeakerOption = { id: number; label: string };
 
 export type SayVoiceOption = { name: string; locale: string };
+
+export type SapiVoiceOption = { name: string; locale: string };
 
 export type { SourceOption } from "@/lib/news";
 
@@ -241,6 +245,52 @@ export const fetchSayVoicesFn = createServerFn({ method: "GET" }).handler(
       voices.sort((a, b) => {
         const aJa = a.locale.startsWith("ja") ? 0 : 1;
         const bJa = b.locale.startsWith("ja") ? 0 : 1;
+        if (aJa !== bJa) return aJa - bJa;
+        return a.locale.localeCompare(b.locale) || a.name.localeCompare(b.name);
+      });
+      return voices;
+    } catch {
+      return [];
+    }
+  },
+);
+
+export const fetchSapiVoicesFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<SapiVoiceOption[]> => {
+    if (process.platform !== "win32") return [];
+    const script = [
+      "$ErrorActionPreference = 'Stop'",
+      "Add-Type -AssemblyName System.Speech",
+      "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer",
+      "foreach ($v in $s.GetInstalledVoices()) {",
+      "  $i = $v.VoiceInfo",
+      "  [PSCustomObject]@{ name = $i.Name; culture = $i.Culture.Name } | ConvertTo-Json -Compress",
+      "}",
+    ].join("\r\n");
+    try {
+      const { stdout } = await runProc("powershell.exe", [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        script,
+      ]);
+      const voices: SapiVoiceOption[] = [];
+      for (const line of stdout.split(/\r?\n/)) {
+        const t = line.trim();
+        if (!t) continue;
+        try {
+          const obj = JSON.parse(t) as { name?: unknown; culture?: unknown };
+          if (typeof obj.name === "string" && typeof obj.culture === "string") {
+            voices.push({ name: obj.name, locale: obj.culture });
+          }
+        } catch {
+          // 行単位 JSON でない出力は無視
+        }
+      }
+      voices.sort((a, b) => {
+        const aJa = a.locale.toLowerCase().startsWith("ja") ? 0 : 1;
+        const bJa = b.locale.toLowerCase().startsWith("ja") ? 0 : 1;
         if (aJa !== bJa) return aJa - bJa;
         return a.locale.localeCompare(b.locale) || a.name.localeCompare(b.name);
       });

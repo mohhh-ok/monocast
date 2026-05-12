@@ -7,9 +7,10 @@ export const TTS_IDS = [
   "voicevox",
   "aivisspeech",
   "say",
+  "sapi",
   "openai",
   "elevenlabs",
-  "piper",
+  "kokoro",
 ] as const;
 export type TtsId = (typeof TTS_IDS)[number];
 
@@ -32,16 +33,19 @@ export const ConfigSchema = z.object({
   sayVoice: z.string().default(""),
   /** macOS say の発話速度 (words per minute)。 */
   sayRate: z.coerce.number().int().positive().default(180),
+  /** Windows SAPI の voice 名 (例: "Microsoft Haruka Desktop")。空文字でシステム既定。 */
+  sapiVoice: z.string().default(""),
+  /** Windows SAPI の発話速度。-10..10 の整数 (0 が標準)。 */
+  sapiRate: z.coerce.number().int().min(-10).max(10).default(0),
   /** OpenAI TTS。 */
   openaiTtsModel: z.string().min(1).default("gpt-4o-mini-tts"),
   openaiTtsVoice: z.string().min(1).default("alloy"),
   /** ElevenLabs。voice ID は ElevenLabs ダッシュボードから取得。 */
   elevenlabsModelId: z.string().min(1).default("eleven_turbo_v2_5"),
   elevenlabsVoiceId: z.string().min(1).default("21m00Tcm4TlvDq8ikWAM"),
-  /** Piper。PATH 通っていれば bin = "piper" でよい。 */
-  piperBin: z.string().min(1).default("piper"),
-  piperModelPath: z.string().default(""),
-  piperSpeakerId: z.coerce.number().int().nonnegative().optional(),
+  /** Kokoro-FastAPI (Docker)。多言語対応。既定ポートは 8880。 */
+  kokoroUrl: z.string().url().default("http://localhost:8880"),
+  kokoroVoice: z.string().min(1).default("af_heart"),
   /** 段落ごとの音声合成を何並列で走らせるか (1 で逐次)。 */
   ttsConcurrency: z.coerce.number().int().min(1).max(8).default(1),
   // null = 全ソース有効（デフォルト）、配列 = 明示選択、[] = 全 OFF
