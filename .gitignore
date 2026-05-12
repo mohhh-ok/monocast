@@ -17,3 +17,6 @@ public/audio/*.wav
 *.tsbuildinfo
 .logs/
 scheduled_tasks.lock
+/.playwright-mcp
+/data
+/dist
