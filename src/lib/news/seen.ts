@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 
 const DB_FILE = path.join(process.cwd(), "data", "seen.sqlite");
-const TTL_DAYS = 30;
+const TTL_DAYS = 14;
 const TTL_MS = TTL_DAYS * 24 * 60 * 60 * 1000;
 
 let db: DatabaseSync | null = null;

@@ -27,7 +27,7 @@ let inFlight: Promise<GenerateResult> | null = null;
 
 export type GenerateResult =
   | { status: "ok"; program: Program }
-  | { status: "empty" }
+  | { status: "empty"; reason: "no-sources" | "no-fresh" }
   | { status: "already-running" }
   | { status: "error"; message: string };
 
@@ -38,7 +38,7 @@ export const generateProgramFn = createServerFn({ method: "POST" }).handler(
     const task = (async (): Promise<GenerateResult> => {
       const adapter = await pickAdapter();
       const r = await produceProgram(adapter);
-      if (r.status === "empty") return { status: "empty" };
+      if (r.status === "empty") return { status: "empty", reason: r.reason };
       return { status: "ok", program: r.program };
     })().finally(() => {
       inFlight = null;

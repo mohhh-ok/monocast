@@ -49,7 +49,11 @@ function Home() {
       const result = await generateProgramFn();
       if (result.status === "error") throw new Error(result.message);
       if (result.status === "empty") {
-        setError("ニュースソースが選択されていません。/settings で選んでください。");
+        setError(
+          result.reason === "no-fresh"
+            ? "新規ニュースがありません。しばらく経ってからお試しください。（過去14日に番組化済みの記事は除外しています）"
+            : "ニュースソースが選択されていません。設定から選んでください。",
+        );
         return;
       }
       await refresh();

@@ -10,7 +10,7 @@ import { synthesizeToMp3 } from "./tts";
 
 export type ProduceResult =
   | { status: "ok"; program: Program }
-  | { status: "empty" };
+  | { status: "empty"; reason: "no-sources" | "no-fresh" };
 
 /** ニュース取得 → 台本 → 音声 → キュー追加 をまとめて行う（1 adapter で 1 本） */
 export async function produceProgram(
@@ -24,14 +24,24 @@ export async function produceProgram(
 
   const cfg = await getConfig();
   const tNews = Date.now();
-  const news = await fetchNews(10, cfg.enabledSources);
+  const { items: news, candidateCount, seenCount } = await fetchNews(
+    10,
+    cfg.enabledSources,
+  );
   log.info(
     tag,
     `ニュース取得 ${news.length}件 (${Date.now() - tNews}ms)`,
   );
   if (news.length === 0) {
+    if (candidateCount > 0 && seenCount >= candidateCount) {
+      log.warn(
+        tag,
+        `新規ニュースなし: 候補 ${candidateCount}件すべて既出のため中止`,
+      );
+      return { status: "empty", reason: "no-fresh" };
+    }
     log.warn(tag, "ニュースが0件のため中止");
-    return { status: "empty" };
+    return { status: "empty", reason: "no-sources" };
   }
 
   const tScript = Date.now();

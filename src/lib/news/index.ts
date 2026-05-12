@@ -44,6 +44,14 @@ export function listSources(): readonly RssFeed[] {
   return SOURCES;
 }
 
+export type FetchNewsResult = {
+  items: NewsItem[];
+  /** 重複タイトル除去後の候補件数。 */
+  candidateCount: number;
+  /** 候補のうち既出URL（過去14日）として除外された件数。 */
+  seenCount: number;
+};
+
 /**
  * ニュースを取得する。
  * @param limit 返す総件数の上限
@@ -52,15 +60,16 @@ export function listSources(): readonly RssFeed[] {
 export async function fetchNews(
   limit = 6,
   enabledIds: readonly string[] | null = null,
-): Promise<NewsItem[]> {
-  if (enabledIds !== null && enabledIds.length === 0) return [];
+): Promise<FetchNewsResult> {
+  if (enabledIds !== null && enabledIds.length === 0)
+    return { items: [], candidateCount: 0, seenCount: 0 };
 
   const feeds =
     enabledIds === null
       ? [...SOURCES]
       : SOURCES.filter((s) => enabledIds.includes(s.id));
 
-  if (feeds.length === 0) return [];
+  if (feeds.length === 0) return { items: [], candidateCount: 0, seenCount: 0 };
 
   const adapter = createRssAdapter({ name: "rss:default", feeds });
   const items = await adapter.fetch(limit);
@@ -74,7 +83,7 @@ export async function fetchNews(
     return true;
   });
 
-  // 過去30日に番組化済みのURLを除外（seen.ts は node:sqlite 依存なので動的 import）
+  // 過去14日に番組化済みのURLを除外（seen.ts は node:sqlite 依存なので動的 import）
   const { getSeenSet, purgeExpired } = await import("./seen");
   const purged = purgeExpired();
   if (purged > 0) log.info("news", `seen_urls TTL 削除 ${purged}件`);
@@ -86,5 +95,9 @@ export async function fetchNews(
 
   // 軽くシャッフルして多様性を出す（決定的すぎないように）
   fresh.sort(() => Math.random() - 0.5);
-  return fresh.slice(0, limit);
+  return {
+    items: fresh.slice(0, limit),
+    candidateCount: dedup.length,
+    seenCount: seenUrls.size,
+  };
 }
