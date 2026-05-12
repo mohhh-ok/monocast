@@ -8,7 +8,6 @@ import {
   type SayVoiceOption,
   type SpeakerOption,
 } from "@/server/settings";
-import { DockerHint } from "./DockerHint";
 import { EngineStatus } from "./EngineStatus";
 import { Field } from "./Field";
 import {
@@ -19,6 +18,7 @@ import {
   TTS_LABELS,
 } from "./model-choices";
 import { btnStyle, cardStyle, inputStyle, sectionStyle, sourceItemStyle } from "./styles";
+import { TtsSetup } from "./TtsSetup";
 
 type Props = {
   cfg: Config;
@@ -101,7 +101,6 @@ export function TtsSection({
               </button>
             </div>
             <EngineStatus id="voicevox" url={cfg.voicevoxUrl} />
-            <DockerHint profile="voicevox" />
           </Field>
 
           <Field
@@ -159,7 +158,6 @@ export function TtsSection({
               </button>
             </div>
             <EngineStatus id="aivisspeech" url={cfg.aivisSpeechUrl} />
-            <DockerHint profile="aivisspeech" />
           </Field>
 
           <Field
@@ -278,7 +276,6 @@ export function TtsSection({
               style={inputStyle}
             />
             <EngineStatus id="kokoro" url={cfg.kokoroUrl} />
-            <DockerHint profile="kokoro" />
           </Field>
           <Field
             label="Voice"
@@ -431,6 +428,8 @@ export function TtsSection({
           style={inputStyle}
         />
       </Field>
+
+      <TtsSetup id={cfg.selectedTts} />
     </section>
   );
 }
