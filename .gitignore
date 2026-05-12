@@ -1,5 +1,9 @@
 node_modules
 .next
+.output
+.vite
+.tanstack
+src/routeTree.gen.ts
 .env
 .env.local
 data/queue.json

@@ -1,34 +1,35 @@
-"use client";
-
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import type { Config } from "@/config";
 import {
-  fetchSpeakers,
-  loadConfig,
-  updateConfig,
+  fetchSpeakersFn,
+  loadConfigFn,
+  updateConfigFn,
   type SpeakerOption,
-} from "./actions";
+} from "@/server/settings";
 
-type Status = { kind: "idle" } | { kind: "saving" } | { kind: "saved" } | { kind: "error"; message: string };
+export const Route = createFileRoute("/settings")({
+  component: SettingsPage,
+  loader: async () => {
+    const [cfg, speakers] = await Promise.all([
+      loadConfigFn(),
+      fetchSpeakersFn(),
+    ]);
+    return { cfg, speakers };
+  },
+});
 
-export default function SettingsPage() {
-  const [cfg, setCfg] = useState<Config | null>(null);
-  const [speakers, setSpeakers] = useState<SpeakerOption[]>([]);
+type Status =
+  | { kind: "idle" }
+  | { kind: "saving" }
+  | { kind: "saved" }
+  | { kind: "error"; message: string };
+
+function SettingsPage() {
+  const initial = Route.useLoaderData();
+  const [cfg, setCfg] = useState<Config>(initial.cfg);
+  const [speakers, setSpeakers] = useState<SpeakerOption[]>(initial.speakers);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
-
-  useEffect(() => {
-    loadConfig().then(setCfg);
-    fetchSpeakers().then(setSpeakers);
-  }, []);
-
-  if (!cfg) {
-    return (
-      <main style={mainStyle}>
-        <div style={{ color: "#8a93b8" }}>読み込み中...</div>
-      </main>
-    );
-  }
 
   const update = <K extends keyof Config>(key: K, value: Config[K]) => {
     setCfg({ ...cfg, [key]: value });
@@ -36,7 +37,7 @@ export default function SettingsPage() {
 
   const onSave = async () => {
     setStatus({ kind: "saving" });
-    const res = await updateConfig(cfg);
+    const res = await updateConfigFn({ data: cfg });
     if (res.status === "ok") {
       setCfg(res.config);
       setStatus({ kind: "saved" });
@@ -47,7 +48,7 @@ export default function SettingsPage() {
   };
 
   const refreshSpeakers = async () => {
-    const list = await fetchSpeakers();
+    const list = await fetchSpeakersFn();
     setSpeakers(list);
   };
 
@@ -160,7 +161,7 @@ export default function SettingsPage() {
         >
           {status.kind === "saving" ? "保存中..." : "保存"}
         </button>
-        <Link href="/" style={{ color: "#8a93b8", fontSize: 13 }}>
+        <Link to="/" style={{ color: "#8a93b8", fontSize: 13 }}>
           ← トップへ戻る
         </Link>
         {status.kind === "saved" && (
