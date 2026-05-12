@@ -1,5 +1,6 @@
 import { LLM_IDS, type Config, type LlmId } from "@/config.shared";
 import { Field } from "./Field";
+import { LlmSetup } from "./LlmSetup";
 import {
   ANTHROPIC_MODELS,
   GEMINI_MODELS,
@@ -19,10 +20,7 @@ export function LlmSection({ cfg, update }: Props) {
     <section style={cardStyle}>
       <h2 style={sectionStyle}>LLM</h2>
 
-      <Field
-        label="使用する LLM"
-        hint="API キーは環境変数で設定してください。"
-      >
+      <Field label="使用する LLM">
         <div style={{ display: "grid", gap: 6 }}>
           {LLM_IDS.map((id) => (
             <label key={id} style={sourceItemStyle}>
@@ -132,6 +130,8 @@ export function LlmSection({ cfg, update }: Props) {
           </Field>
         </>
       )}
+
+      <LlmSetup id={cfg.selectedLlm} />
     </section>
   );
 }
