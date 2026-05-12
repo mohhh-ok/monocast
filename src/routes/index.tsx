@@ -108,9 +108,10 @@ function Home() {
           aria-label="設定"
           style={{
             position: "absolute",
-            top: 0,
+            top: -4,
             right: 0,
-            fontSize: 18,
+            fontSize: 32,
+            lineHeight: 1,
             color: "#8a93b8",
             textDecoration: "none",
             padding: 4,
