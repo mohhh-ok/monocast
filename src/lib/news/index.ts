@@ -58,8 +58,8 @@ export type FetchNewsResult = {
  * @param enabledIds 有効ソース ID。null なら全件、空配列なら空結果を返す。
  */
 export async function fetchNews(
-  limit = 6,
-  enabledIds: readonly string[] | null = null,
+  limit: number,
+  enabledIds: readonly string[] | null,
 ): Promise<FetchNewsResult> {
   if (enabledIds !== null && enabledIds.length === 0)
     return { items: [], candidateCount: 0, seenCount: 0 };

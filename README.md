@@ -112,7 +112,7 @@ curl -s http://localhost:50021/speakers | jq '.[] | {name, styles: [.styles[] | 
 
 取得した記事は **カテゴリに均等にクォータを割り当て、カテゴリ内では各ソースからラウンドロビンで 1 件ずつ取る** ように選出する。フィード本数が多いカテゴリに結果が支配されないようにしている。
 
-各フィードは **SQLite に 10 分キャッシュ**し、同一ドメインのフィードは直列で叩いて相手側に負荷をかけないようにしている（`data/rss-cache.sqlite`）。
+各フィードは **SQLite に 30 分キャッシュ**し、同一ドメインのフィードは直列で叩いて相手側に負荷をかけないようにしている（`data/rss-cache.sqlite`）。
 
 過去 14 日に番組化済みの URL は SQLite (`seen_urls`) で除外しているので、同じニュースが繰り返し読まれない。
 
@@ -131,7 +131,7 @@ npm run dev
 | `data/config.json` | アクティブプロファイル ID を保持 |
 | `data/profiles/<id>.json` | プロファイルごとの設定（編集ダイアログから自動保存） |
 | `data/queue.json` | 番組キューのメタデータ |
-| `data/rss-cache.sqlite` | RSS の 10 分キャッシュ |
+| `data/rss-cache.sqlite` | RSS の 30 分キャッシュ |
 | `data/seen.sqlite` | 過去 14 日に読んだ URL |
 | `public/audio/<id>/seg-NNN.wav` | 各番組の段落音声（再生終了でディレクトリごと削除） |
 | `.logs/app.jsonl` | 詳細ログ（起動ごとにクリア） |

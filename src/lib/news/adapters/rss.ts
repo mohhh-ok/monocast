@@ -22,7 +22,7 @@ export type RssAdapterOptions = {
   cacheTtlMs?: number;
 };
 
-const DEFAULT_CACHE_TTL_MS = 10 * 60 * 1000;
+const DEFAULT_CACHE_TTL_MS = 30 * 60 * 1000;
 
 function getDomain(url: string): string {
   try {
