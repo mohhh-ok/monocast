@@ -16,3 +16,4 @@ public/audio/*.wav
 .DS_Store
 *.tsbuildinfo
 .logs/
+scheduled_tasks.lock
