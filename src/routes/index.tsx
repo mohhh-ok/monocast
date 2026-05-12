@@ -1,8 +1,15 @@
-"use client";
-
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { dismissProgram, generateProgram } from "./actions";
+import {
+  dismissProgramFn,
+  generateProgramFn,
+  listProgramsFn,
+} from "@/server/programs";
+
+export const Route = createFileRoute("/")({
+  component: Home,
+  loader: () => listProgramsFn(),
+});
 
 type Program = {
   id: string;
@@ -16,8 +23,9 @@ type Program = {
 
 const MIN_QUEUE = 2;
 
-export default function Page() {
-  const [programs, setPrograms] = useState<Program[]>([]);
+function Home() {
+  const initial = Route.useLoaderData();
+  const [programs, setPrograms] = useState<Program[]>(initial.programs);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showScript, setShowScript] = useState(false);
@@ -25,8 +33,7 @@ export default function Page() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const refresh = useCallback(async () => {
-    const res = await fetch("/api/queue", { cache: "no-store" });
-    const data = await res.json();
+    const data = await listProgramsFn();
     setPrograms(data.programs || []);
   }, []);
 
@@ -35,7 +42,7 @@ export default function Page() {
     setGenerating(true);
     setError(null);
     try {
-      const result = await generateProgram();
+      const result = await generateProgramFn();
       if (result.status === "error") throw new Error(result.message);
       await refresh();
     } catch (e) {
@@ -45,14 +52,11 @@ export default function Page() {
     }
   }, [generating, refresh]);
 
-  // 初回ロード + 5秒ごとにキューを軽くポーリング
   useEffect(() => {
-    refresh();
     const t = setInterval(refresh, 5000);
     return () => clearInterval(t);
   }, [refresh]);
 
-  // キューが少ないときは自動補充
   useEffect(() => {
     if (programs.length < MIN_QUEUE && !generating) {
       generate();
@@ -64,13 +68,13 @@ export default function Page() {
 
   const handleEnded = useCallback(async () => {
     if (!current) return;
-    await dismissProgram(current.id);
+    await dismissProgramFn({ data: { id: current.id } });
     await refresh();
   }, [current, refresh]);
 
   const skip = useCallback(async () => {
     if (!current) return;
-    await dismissProgram(current.id);
+    await dismissProgramFn({ data: { id: current.id } });
     await refresh();
   }, [current, refresh]);
 
@@ -100,7 +104,7 @@ export default function Page() {
           ひとりのための、ききながし
         </h1>
         <Link
-          href="/settings"
+          to="/settings"
           aria-label="設定"
           style={{
             position: "absolute",
@@ -187,11 +191,7 @@ export default function Page() {
                 flexWrap: "wrap",
               }}
             >
-              <button
-                onClick={skip}
-                style={btnStyle()}
-                aria-label="次の番組へ"
-              >
+              <button onClick={skip} style={btnStyle()} aria-label="次の番組へ">
                 ⏭ スキップ
               </button>
               <button
