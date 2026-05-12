@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { dismissProgram, generateProgram } from "./actions";
 
 type Program = {
   id: string;
@@ -33,11 +34,8 @@ export default function Page() {
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch("/api/generate", { method: "POST" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || `生成失敗 (${res.status})`);
-      }
+      const result = await generateProgram();
+      if (result.status === "error") throw new Error(result.message);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -65,17 +63,13 @@ export default function Page() {
 
   const handleEnded = useCallback(async () => {
     if (!current) return;
-    await fetch(`/api/queue?id=${encodeURIComponent(current.id)}`, {
-      method: "DELETE",
-    });
+    await dismissProgram(current.id);
     await refresh();
   }, [current, refresh]);
 
   const skip = useCallback(async () => {
     if (!current) return;
-    await fetch(`/api/queue?id=${encodeURIComponent(current.id)}`, {
-      method: "DELETE",
-    });
+    await dismissProgram(current.id);
     await refresh();
   }, [current, refresh]);
 
