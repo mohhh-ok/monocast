@@ -1,4 +1,6 @@
+import { log } from "../log";
 import { createRssAdapter, type RssFeed } from "./adapters/rss";
+import { getSeenSet, purgeExpired } from "./seen";
 import type { NewsItem } from "./types";
 
 export type { NewsAdapter, NewsItem, SourceCategory, SourceOption } from "./types";
@@ -65,15 +67,24 @@ export async function fetchNews(
   const items = await adapter.fetch(limit);
 
   // 重複タイトル除去
-  const seen = new Set<string>();
+  const seenTitles = new Set<string>();
   const dedup = items.filter((it) => {
     const key = it.title;
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
+    if (!key || seenTitles.has(key)) return false;
+    seenTitles.add(key);
     return true;
   });
 
+  // 過去30日に番組化済みのURLを除外
+  const purged = purgeExpired();
+  if (purged > 0) log.info("news", `seen_urls TTL 削除 ${purged}件`);
+  const links = dedup.map((it) => it.link).filter((l) => l.length > 0);
+  const seenUrls = getSeenSet(links);
+  const fresh = dedup.filter((it) => !seenUrls.has(it.link));
+  if (seenUrls.size > 0)
+    log.info("news", `既出URL除外 ${seenUrls.size}件 / 候補 ${dedup.length}件`);
+
   // 軽くシャッフルして多様性を出す（決定的すぎないように）
-  dedup.sort(() => Math.random() - 0.5);
-  return dedup.slice(0, limit);
+  fresh.sort(() => Math.random() - 0.5);
+  return fresh.slice(0, limit);
 }

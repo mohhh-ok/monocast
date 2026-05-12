@@ -21,7 +21,7 @@ export type RssAdapterOptions = {
 
 export function createRssAdapter(opts: RssAdapterOptions): NewsAdapter {
   const parser = new Parser({ timeout: opts.timeoutMs ?? 8000 });
-  const perFeedLimit = opts.perFeedLimit ?? 5;
+  const perFeedLimit = opts.perFeedLimit ?? 10;
   const name = opts.name ?? "rss";
 
   return {
