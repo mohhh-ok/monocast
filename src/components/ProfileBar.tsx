@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ProfilesState } from "@/server/settings";
+import { SearchableSelect } from "./SearchableSelect";
 
 type Props = {
   profiles: ProfilesState;
@@ -33,26 +34,14 @@ export function ProfileBar({
       >
         PROFILE
       </span>
-      <select
+      <SearchableSelect
         value={profiles.activeProfileId}
-        onChange={(e) => onSwitch(e.target.value)}
-        style={{
-          flex: "1 1 200px",
-          padding: "8px 12px",
-          background: "rgba(0,0,0,0.25)",
-          border: "1px solid rgba(255,255,255,0.1)",
-          borderRadius: 8,
-          color: "#e6e9f5",
-          fontSize: 14,
-          fontFamily: "inherit",
-        }}
-      >
-        {profiles.profiles.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
+        options={profiles.profiles.map((p) => ({ value: p.id, label: p.name }))}
+        onChange={onSwitch}
+        style={{ flex: "1 1 200px" }}
+        inputStyle={{ padding: "8px 12px" }}
+      />
+
       <button type="button" onClick={() => onCreate(false)} style={btnStyle}>
         新規
       </button>

@@ -10,6 +10,7 @@ import {
   type SayVoiceOption,
   type SpeakerOption,
 } from "@/server/settings";
+import { SearchableSelect } from "../SearchableSelect";
 import { EngineStatus } from "./EngineStatus";
 import { Field } from "./Field";
 import {
@@ -20,6 +21,9 @@ import {
 } from "./model-choices";
 import { btnStyle, cardStyle, inputStyle, sectionStyle, sourceItemStyle } from "./styles";
 import { TtsSetup } from "./TtsSetup";
+
+const toStringOptions = (xs: readonly string[]) =>
+  xs.map((v) => ({ value: v, label: v }));
 
 type Props = {
   cfg: Config;
@@ -122,19 +126,15 @@ export function TtsSection({
             }
           >
             {speakers.length > 0 ? (
-              <select
-                value={cfg.voicevoxSpeaker}
-                onChange={(e) =>
-                  update("voicevoxSpeaker", Number(e.target.value))
-                }
-                style={inputStyle}
-              >
-                {speakers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label} (id: {s.id})
-                  </option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={String(cfg.voicevoxSpeaker)}
+                options={speakers.map((s) => ({
+                  value: String(s.id),
+                  label: `${s.label} (id: ${s.id})`,
+                }))}
+                onChange={(v) => update("voicevoxSpeaker", Number(v))}
+                inputStyle={inputStyle}
+              />
             ) : (
               <input
                 type="number"
@@ -179,19 +179,15 @@ export function TtsSection({
             }
           >
             {aivisSpeakers.length > 0 ? (
-              <select
-                value={cfg.aivisSpeechSpeaker}
-                onChange={(e) =>
-                  update("aivisSpeechSpeaker", Number(e.target.value))
-                }
-                style={inputStyle}
-              >
-                {aivisSpeakers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label} (id: {s.id})
-                  </option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={String(cfg.aivisSpeechSpeaker)}
+                options={aivisSpeakers.map((s) => ({
+                  value: String(s.id),
+                  label: `${s.label} (id: ${s.id})`,
+                }))}
+                onChange={(v) => update("aivisSpeechSpeaker", Number(v))}
+                inputStyle={inputStyle}
+              />
             ) : (
               <input
                 type="number"
@@ -212,32 +208,22 @@ export function TtsSection({
             label="OpenAI TTS モデル"
             hint="API キー: OPENAI_API_KEY / 候補は目安・自由入力可"
           >
-            <input
-              type="text"
-              list="openai-tts-models"
+            <SearchableSelect
               value={cfg.openaiTtsModel}
-              onChange={(e) => update("openaiTtsModel", e.target.value)}
-              style={inputStyle}
+              options={toStringOptions(OPENAI_TTS_MODELS)}
+              onChange={(v) => update("openaiTtsModel", v)}
+              freeInput
+              inputStyle={inputStyle}
             />
-            <datalist id="openai-tts-models">
-              {OPENAI_TTS_MODELS.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
           </Field>
           <Field label="Voice">
-            <input
-              type="text"
-              list="openai-tts-voices"
+            <SearchableSelect
               value={cfg.openaiTtsVoice}
-              onChange={(e) => update("openaiTtsVoice", e.target.value)}
-              style={inputStyle}
+              options={toStringOptions(OPENAI_TTS_VOICES)}
+              onChange={(v) => update("openaiTtsVoice", v)}
+              freeInput
+              inputStyle={inputStyle}
             />
-            <datalist id="openai-tts-voices">
-              {OPENAI_TTS_VOICES.map((v) => (
-                <option key={v} value={v} />
-              ))}
-            </datalist>
           </Field>
         </>
       )}
@@ -248,18 +234,13 @@ export function TtsSection({
             label="ElevenLabs モデル"
             hint="API キー: ELEVENLABS_API_KEY / 候補は目安・自由入力可"
           >
-            <input
-              type="text"
-              list="elevenlabs-models"
+            <SearchableSelect
               value={cfg.elevenlabsModelId}
-              onChange={(e) => update("elevenlabsModelId", e.target.value)}
-              style={inputStyle}
+              options={toStringOptions(ELEVENLABS_MODELS)}
+              onChange={(v) => update("elevenlabsModelId", v)}
+              freeInput
+              inputStyle={inputStyle}
             />
-            <datalist id="elevenlabs-models">
-              {ELEVENLABS_MODELS.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
           </Field>
           <Field
             label="Voice ID"
@@ -305,22 +286,25 @@ export function TtsSection({
             }
           >
             {kokoroVoices.length > 0 ? (
-              <select
+              <SearchableSelect
                 value={cfg.kokoroVoice}
-                onChange={(e) => update("kokoroVoice", e.target.value)}
-                style={inputStyle}
-              >
-                {!kokoroVoices.some((v) => v.name === cfg.kokoroVoice) && (
-                  <option value={cfg.kokoroVoice}>
-                    {cfg.kokoroVoice} (未取得)
-                  </option>
-                )}
-                {kokoroVoices.map((v) => (
-                  <option key={v.name} value={v.name}>
-                    {v.name} ({v.locale})
-                  </option>
-                ))}
-              </select>
+                options={[
+                  ...(kokoroVoices.some((v) => v.name === cfg.kokoroVoice)
+                    ? []
+                    : [
+                        {
+                          value: cfg.kokoroVoice,
+                          label: `${cfg.kokoroVoice} (未取得)`,
+                        },
+                      ]),
+                  ...kokoroVoices.map((v) => ({
+                    value: v.name,
+                    label: `${v.name} (${v.locale})`,
+                  })),
+                ]}
+                onChange={(v) => update("kokoroVoice", v)}
+                inputStyle={inputStyle}
+              />
             ) : (
               <input
                 type="text"
@@ -346,18 +330,19 @@ export function TtsSection({
           >
             <div style={{ display: "flex", gap: 8 }}>
               {sayVoices.length > 0 ? (
-                <select
+                <SearchableSelect
                   value={cfg.sayVoice}
-                  onChange={(e) => update("sayVoice", e.target.value)}
-                  style={inputStyle}
-                >
-                  <option value="">(システム既定)</option>
-                  {sayVoices.map((v) => (
-                    <option key={v.name} value={v.name}>
-                      {v.name} ({v.locale})
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: "", label: "(システム既定)" },
+                    ...sayVoices.map((v) => ({
+                      value: v.name,
+                      label: `${v.name} (${v.locale})`,
+                    })),
+                  ]}
+                  onChange={(v) => update("sayVoice", v)}
+                  style={{ flex: 1 }}
+                  inputStyle={inputStyle}
+                />
               ) : (
                 <input
                   type="text"
@@ -405,18 +390,19 @@ export function TtsSection({
           >
             <div style={{ display: "flex", gap: 8 }}>
               {sapiVoices.length > 0 ? (
-                <select
+                <SearchableSelect
                   value={cfg.sapiVoice}
-                  onChange={(e) => update("sapiVoice", e.target.value)}
-                  style={inputStyle}
-                >
-                  <option value="">(システム既定)</option>
-                  {sapiVoices.map((v) => (
-                    <option key={v.name} value={v.name}>
-                      {v.name} ({v.locale})
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: "", label: "(システム既定)" },
+                    ...sapiVoices.map((v) => ({
+                      value: v.name,
+                      label: `${v.name} (${v.locale})`,
+                    })),
+                  ]}
+                  onChange={(v) => update("sapiVoice", v)}
+                  style={{ flex: 1 }}
+                  inputStyle={inputStyle}
+                />
               ) : (
                 <input
                   type="text"

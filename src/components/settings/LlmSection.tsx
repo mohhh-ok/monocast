@@ -1,4 +1,5 @@
 import { LLM_IDS, type Config, type LlmId } from "@/config.shared";
+import { SearchableSelect } from "../SearchableSelect";
 import { Field } from "./Field";
 import { LlmSetup } from "./LlmSetup";
 import {
@@ -9,6 +10,8 @@ import {
   OPENAI_MODELS,
 } from "./model-choices";
 import { cardStyle, inputStyle, sectionStyle, sourceItemStyle } from "./styles";
+
+const toOptions = (xs: readonly string[]) => xs.map((v) => ({ value: v, label: v }));
 
 type Props = {
   cfg: Config;
@@ -43,18 +46,13 @@ export function LlmSection({ cfg, update }: Props) {
           label="Anthropic モデル"
           hint="API キー: ANTHROPIC_API_KEY / 候補は目安・自由入力可"
         >
-          <input
-            type="text"
-            list="anthropic-models"
+          <SearchableSelect
             value={cfg.anthropicModel}
-            onChange={(e) => update("anthropicModel", e.target.value)}
-            style={inputStyle}
+            options={toOptions(ANTHROPIC_MODELS)}
+            onChange={(v) => update("anthropicModel", v)}
+            freeInput
+            inputStyle={inputStyle}
           />
-          <datalist id="anthropic-models">
-            {ANTHROPIC_MODELS.map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
         </Field>
       )}
 
@@ -63,18 +61,13 @@ export function LlmSection({ cfg, update }: Props) {
           label="OpenAI モデル"
           hint="API キー: OPENAI_API_KEY / 候補は目安・自由入力可"
         >
-          <input
-            type="text"
-            list="openai-models"
+          <SearchableSelect
             value={cfg.openaiModel}
-            onChange={(e) => update("openaiModel", e.target.value)}
-            style={inputStyle}
+            options={toOptions(OPENAI_MODELS)}
+            onChange={(v) => update("openaiModel", v)}
+            freeInput
+            inputStyle={inputStyle}
           />
-          <datalist id="openai-models">
-            {OPENAI_MODELS.map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
         </Field>
       )}
 
@@ -83,18 +76,13 @@ export function LlmSection({ cfg, update }: Props) {
           label="Gemini モデル"
           hint="API キー: GEMINI_API_KEY / 候補は目安・自由入力可"
         >
-          <input
-            type="text"
-            list="gemini-models"
+          <SearchableSelect
             value={cfg.geminiModel}
-            onChange={(e) => update("geminiModel", e.target.value)}
-            style={inputStyle}
+            options={toOptions(GEMINI_MODELS)}
+            onChange={(v) => update("geminiModel", v)}
+            freeInput
+            inputStyle={inputStyle}
           />
-          <datalist id="gemini-models">
-            {GEMINI_MODELS.map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
         </Field>
       )}
 
@@ -115,18 +103,13 @@ export function LlmSection({ cfg, update }: Props) {
             label="Ollama モデル"
             hint="ローカルに pull 済みのモデル名を入力（候補はあくまで参考）"
           >
-            <input
-              type="text"
-              list="ollama-models"
+            <SearchableSelect
               value={cfg.ollamaModel}
-              onChange={(e) => update("ollamaModel", e.target.value)}
-              style={inputStyle}
+              options={toOptions(OLLAMA_MODELS)}
+              onChange={(v) => update("ollamaModel", v)}
+              freeInput
+              inputStyle={inputStyle}
             />
-            <datalist id="ollama-models">
-              {OLLAMA_MODELS.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
           </Field>
         </>
       )}
