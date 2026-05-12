@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAtom } from "jotai";
 import {
@@ -7,6 +7,7 @@ import {
   listProgramsFn,
 } from "@/server/programs";
 import { historyAtom } from "@/lib/atoms";
+import { SettingsPanel } from "@/components/SettingsPanel";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -32,8 +33,17 @@ function Home() {
   const [error, setError] = useState<string | null>(null);
   const [showScript, setShowScript] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
   const [history, setHistory] = useAtom(historyAtom);
+
+  useEffect(() => {
+    const dlg = dialogRef.current;
+    if (!dlg) return;
+    if (showSettings && !dlg.open) dlg.showModal();
+    if (!showSettings && dlg.open) dlg.close();
+  }, [showSettings]);
 
   const refresh = useCallback(async () => {
     const data = await listProgramsFn();
@@ -122,8 +132,9 @@ function Home() {
         <h1 style={{ fontSize: 22, fontWeight: 500, color: "#cbd2ee" }}>
           ひとりのための、ききながし
         </h1>
-        <Link
-          to="/settings"
+        <button
+          type="button"
+          onClick={() => setShowSettings(true)}
           aria-label="設定"
           style={{
             position: "absolute",
@@ -132,12 +143,14 @@ function Home() {
             fontSize: 32,
             lineHeight: 1,
             color: "#8a93b8",
-            textDecoration: "none",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
             padding: 4,
           }}
         >
           ⚙
-        </Link>
+        </button>
       </header>
 
       <section
@@ -367,10 +380,35 @@ function Home() {
         </div>
       )}
 
+      <dialog
+        ref={dialogRef}
+        onClose={() => setShowSettings(false)}
+        onClick={(e) => {
+          if (e.target === dialogRef.current) setShowSettings(false);
+        }}
+        style={{
+          width: "min(720px, 100%)",
+          maxHeight: "calc(100vh - 96px)",
+          padding: 32,
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: 20,
+          background: "#10142a",
+          color: "#e6e9f5",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          <SettingsPanel onClose={() => setShowSettings(false)} />
+        </div>
+      </dialog>
+
       <style>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.3; }
+        }
+        dialog::backdrop {
+          background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(4px);
         }
       `}</style>
     </main>
