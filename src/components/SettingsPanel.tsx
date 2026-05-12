@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { type Config } from "@/config.shared";
 import {
   fetchAivisSpeakersFn,
+  fetchKokoroVoicesFn,
   fetchSapiVoicesFn,
   fetchSayVoicesFn,
   fetchSpeakersFn,
@@ -11,6 +12,7 @@ import {
   loadConfigFn,
   renameProfileFn,
   updateConfigFn,
+  type KokoroVoiceOption,
   type ProfilesState,
   type SapiVoiceOption,
   type SayVoiceOption,
@@ -43,6 +45,7 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
   const [aivisSpeakers, setAivisSpeakers] = useState<SpeakerOption[]>([]);
   const [sayVoices, setSayVoices] = useState<SayVoiceOption[]>([]);
   const [sapiVoices, setSapiVoices] = useState<SapiVoiceOption[]>([]);
+  const [kokoroVoices, setKokoroVoices] = useState<KokoroVoiceOption[]>([]);
   const [sources, setSources] = useState<SourceOption[]>([]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
@@ -64,8 +67,9 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
       fetchAivisSpeakersFn(),
       fetchSayVoicesFn(),
       fetchSapiVoicesFn(),
+      fetchKokoroVoicesFn(),
       listSourcesFn(),
-    ]).then(([c, pf, sp, asp, sv, sapi, src]) => {
+    ]).then(([c, pf, sp, asp, sv, sapi, kv, src]) => {
       if (cancelled) return;
       setCfg(c);
       editingProfileIdRef.current = pf.activeProfileId;
@@ -75,6 +79,7 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
       setAivisSpeakers(asp);
       setSayVoices(sv);
       setSapiVoices(sapi);
+      setKokoroVoices(kv);
       setSources(src);
     });
     return () => {
@@ -207,6 +212,8 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
         setSayVoices={setSayVoices}
         sapiVoices={sapiVoices}
         setSapiVoices={setSapiVoices}
+        kokoroVoices={kokoroVoices}
+        setKokoroVoices={setKokoroVoices}
       />
 
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>

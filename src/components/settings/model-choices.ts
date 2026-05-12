@@ -43,30 +43,6 @@ export const ELEVENLABS_MODELS = [
   "eleven_multilingual_v2",
 ] as const;
 
-// Kokoro-FastAPI で利用可能な代表 voice（先頭2文字: 言語_性別）。
-// af/am=英語(米), bf/bm=英語(英), jf/jm=日本語, zf/zm=中国語。
-export const KOKORO_VOICES = [
-  // 日本語
-  "jf_alpha",
-  "jf_gongitsune",
-  "jf_nezumi",
-  "jf_tebukuro",
-  "jm_kumo",
-  // 英語(米)
-  "af_heart",
-  "af_bella",
-  "af_nicole",
-  "af_sky",
-  "am_michael",
-  "am_fenrir",
-  // 英語(英)
-  "bf_emma",
-  "bm_george",
-  // 中国語
-  "zf_xiaoxiao",
-  "zm_yunjian",
-] as const;
-
 // 安い順に列挙（2026-05 時点・公式公開価格ベース）
 export const ANTHROPIC_MODELS = [
   "claude-haiku-4-5", // $1 / $5 (cheapest current)

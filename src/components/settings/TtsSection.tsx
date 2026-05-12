@@ -1,9 +1,11 @@
 import { TTS_IDS, type Config, type TtsId } from "@/config.shared";
 import {
   fetchAivisSpeakersFn,
+  fetchKokoroVoicesFn,
   fetchSapiVoicesFn,
   fetchSayVoicesFn,
   fetchSpeakersFn,
+  type KokoroVoiceOption,
   type SapiVoiceOption,
   type SayVoiceOption,
   type SpeakerOption,
@@ -12,7 +14,6 @@ import { EngineStatus } from "./EngineStatus";
 import { Field } from "./Field";
 import {
   ELEVENLABS_MODELS,
-  KOKORO_VOICES,
   OPENAI_TTS_MODELS,
   OPENAI_TTS_VOICES,
   TTS_LABELS,
@@ -31,6 +32,8 @@ type Props = {
   setSayVoices: (list: SayVoiceOption[]) => void;
   sapiVoices: SapiVoiceOption[];
   setSapiVoices: (list: SapiVoiceOption[]) => void;
+  kokoroVoices: KokoroVoiceOption[];
+  setKokoroVoices: (list: KokoroVoiceOption[]) => void;
 };
 
 export function TtsSection({
@@ -44,6 +47,8 @@ export function TtsSection({
   setSayVoices,
   sapiVoices,
   setSapiVoices,
+  kokoroVoices,
+  setKokoroVoices,
 }: Props) {
   const refreshSpeakers = async () => {
     setSpeakers(await fetchSpeakersFn());
@@ -58,6 +63,11 @@ export function TtsSection({
   };
   const refreshSapiVoices = async () => {
     setSapiVoices(await fetchSapiVoicesFn());
+  };
+  const refreshKokoroVoices = async () => {
+    setKokoroVoices(
+      await fetchKokoroVoicesFn({ data: { url: cfg.kokoroUrl } }),
+    );
   };
 
   return (
@@ -269,30 +279,57 @@ export function TtsSection({
       {cfg.selectedTts === "kokoro" && (
         <>
           <Field label="Kokoro-FastAPI URL" hint="既定ポートは 8880">
-            <input
-              type="url"
-              value={cfg.kokoroUrl}
-              onChange={(e) => update("kokoroUrl", e.target.value)}
-              style={inputStyle}
-            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="url"
+                value={cfg.kokoroUrl}
+                onChange={(e) => update("kokoroUrl", e.target.value)}
+                style={inputStyle}
+              />
+              <button
+                type="button"
+                onClick={refreshKokoroVoices}
+                style={btnStyle()}
+              >
+                Voice を再取得
+              </button>
+            </div>
             <EngineStatus id="kokoro" url={cfg.kokoroUrl} />
           </Field>
           <Field
             label="Voice"
-            hint="jf_/jm_=日本語, af_/am_=英語(米), bf_/bm_=英語(英), zf_/zm_=中国語。自由入力可。"
+            hint={
+              kokoroVoices.length === 0
+                ? "Kokoro-FastAPI に接続できない場合は voice 名を直接入力 (jf_/jm_=ja, af_/am_=en-US, bf_/bm_=en-GB, zf_/zm_=zh)"
+                : `${kokoroVoices.length} voice 取得済み (ja → en → 他言語の順で表示)`
+            }
           >
-            <input
-              type="text"
-              list="kokoro-voices"
-              value={cfg.kokoroVoice}
-              onChange={(e) => update("kokoroVoice", e.target.value)}
-              style={inputStyle}
-            />
-            <datalist id="kokoro-voices">
-              {KOKORO_VOICES.map((v) => (
-                <option key={v} value={v} />
-              ))}
-            </datalist>
+            {kokoroVoices.length > 0 ? (
+              <select
+                value={cfg.kokoroVoice}
+                onChange={(e) => update("kokoroVoice", e.target.value)}
+                style={inputStyle}
+              >
+                {!kokoroVoices.some((v) => v.name === cfg.kokoroVoice) && (
+                  <option value={cfg.kokoroVoice}>
+                    {cfg.kokoroVoice} (未取得)
+                  </option>
+                )}
+                {kokoroVoices.map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name} ({v.locale})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={cfg.kokoroVoice}
+                onChange={(e) => update("kokoroVoice", e.target.value)}
+                placeholder="af_heart"
+                style={inputStyle}
+              />
+            )}
           </Field>
         </>
       )}

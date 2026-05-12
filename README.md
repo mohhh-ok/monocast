@@ -92,7 +92,7 @@ VOICEVOX の話者 ID 一覧:
 curl -s http://localhost:50021/speakers | jq '.[] | {name, styles: [.styles[] | {name, id}]}'
 ```
 
-Kokoro の voice 一覧:
+Kokoro の voice 一覧は設定画面の「Voice」セレクトに自動で並ぶ（言語推定付き）。CLI で確認したい場合は以下:
 
 ```bash
 curl -s http://localhost:8880/v1/audio/voices | jq

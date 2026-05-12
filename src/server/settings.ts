@@ -355,6 +355,83 @@ export const fetchAivisSpeakersFn = createServerFn({ method: "GET" })
     return fetchVoicevoxCompatSpeakers(url);
   });
 
+/** Kokoro voice 名から大まかな言語ラベルを推定（先頭2文字: af/am/bf/bm/jf/jm/zf/zm 等）。 */
+function kokoroVoiceLocale(name: string): string {
+  const prefix = name.slice(0, 2).toLowerCase();
+  switch (prefix) {
+    case "jf":
+    case "jm":
+      return "ja";
+    case "af":
+    case "am":
+      return "en-US";
+    case "bf":
+    case "bm":
+      return "en-GB";
+    case "zf":
+    case "zm":
+      return "zh";
+    case "ef":
+    case "em":
+      return "es";
+    case "ff":
+    case "fm":
+      return "fr";
+    case "hf":
+    case "hm":
+      return "hi";
+    case "if":
+    case "im":
+      return "it";
+    case "pf":
+    case "pm":
+      return "pt-BR";
+    default:
+      return "?";
+  }
+}
+
+export type KokoroVoiceOption = { name: string; locale: string };
+
+async function fetchKokoroVoicesFromUrl(url: string): Promise<KokoroVoiceOption[]> {
+  try {
+    const res = await fetch(`${url.replace(/\/$/, "")}/v1/audio/voices`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const body = (await res.json()) as unknown;
+    let names: string[] = [];
+    if (Array.isArray(body)) {
+      names = body.filter((v): v is string => typeof v === "string");
+    } else if (body && typeof body === "object") {
+      const v = (body as { voices?: unknown }).voices;
+      if (Array.isArray(v)) {
+        names = v.filter((x): x is string => typeof x === "string");
+      }
+    }
+    const voices = names.map((name) => ({ name, locale: kokoroVoiceLocale(name) }));
+    voices.sort((a, b) => {
+      const order = (l: string) =>
+        l === "ja" ? 0 : l.startsWith("en") ? 1 : l === "?" ? 9 : 2;
+      const oa = order(a.locale);
+      const ob = order(b.locale);
+      if (oa !== ob) return oa - ob;
+      return a.locale.localeCompare(b.locale) || a.name.localeCompare(b.name);
+    });
+    return voices;
+  } catch {
+    return [];
+  }
+}
+
+export const fetchKokoroVoicesFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ url: z.string().url() }).optional())
+  .handler(async ({ data }): Promise<KokoroVoiceOption[]> => {
+    const cfg = await getConfig();
+    const url = data?.url ?? cfg.kokoroUrl;
+    return fetchKokoroVoicesFromUrl(url);
+  });
+
 export type EngineHealth = {
   ok: boolean;
   status?: number;
