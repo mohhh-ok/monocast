@@ -48,7 +48,11 @@ export function appendSilenceToWav(
   let i = 12;
   while (i < wav.length - 8) {
     const id = wav.toString("ascii", i, i + 4);
-    const size = wav.readUInt32LE(i + 4);
+    const rawSize = wav.readUInt32LE(i + 4);
+    // Kokoro-FastAPI 等はストリーミング時に RIFF/data の size を
+    // 0xFFFFFFFF のままにする場合がある。実バッファ長を超えるなら実長で再計算する。
+    const remaining = wav.length - (i + 8);
+    const size = rawSize > remaining ? remaining : rawSize;
     if (id === "data") {
       const silenceBytes = Math.round(silenceSec * sampleRate) * 2;
       const silence = Buffer.alloc(silenceBytes);
@@ -57,8 +61,7 @@ export function appendSilenceToWav(
       const tail = wav.subarray(i + 8 + size);
       const out = Buffer.concat([head, data, silence, tail]);
       out.writeUInt32LE(size + silenceBytes, i + 4);
-      const riffSize = wav.readUInt32LE(4);
-      out.writeUInt32LE(riffSize + silenceBytes, 4);
+      out.writeUInt32LE(out.length - 8, 4);
       return out;
     }
     i += 8 + size + (size % 2);
