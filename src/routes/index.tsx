@@ -8,21 +8,12 @@ import {
 } from "@/server/programs";
 import { historyAtom } from "@/lib/atoms";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import type { Program } from "@/lib/queue";
 
 export const Route = createFileRoute("/")({
   component: Home,
   loader: () => listProgramsFn(),
 });
-
-type Program = {
-  id: string;
-  title: string;
-  body: string;
-  audioUrl: string;
-  durationSec: number;
-  createdAt: string;
-  sources: { title: string; link: string; source: string }[];
-};
 
 const MIN_QUEUE = 2;
 
@@ -202,7 +193,8 @@ function Home() {
             </div>
             <div style={{ fontSize: 12, color: "#8a93b8", marginBottom: 24 }}>
               約 {current.durationSec} 秒 ·{" "}
-              {new Date(current.createdAt).toLocaleString("ja-JP")}
+              {new Date(current.createdAt).toLocaleString("ja-JP")} · by{" "}
+              {current.llm?.label ?? "不明な LLM"}
             </div>
 
             <audio
@@ -238,7 +230,7 @@ function Home() {
                 disabled={generating}
                 style={btnStyle(generating)}
               >
-                {generating ? "生成中..." : "+ 1本生成"}
+                {generating ? "生成中..." : "+ 生成"}
               </button>
             </div>
 
@@ -350,7 +342,14 @@ function Home() {
                 <span style={{ color: "#5a6188", fontSize: 12, width: 24 }}>
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <span style={{ flex: 1, fontSize: 14 }}>{p.title}</span>
+                <span style={{ flex: 1, fontSize: 14 }}>
+                  {p.title}
+                  {p.llm?.label && (
+                    <span style={{ fontSize: 11, color: "#5a6188", marginLeft: 8 }}>
+                      {p.llm.label}
+                    </span>
+                  )}
+                </span>
                 <span style={{ fontSize: 11, color: "#5a6188" }}>
                   {p.durationSec}s
                 </span>
@@ -387,6 +386,12 @@ function Home() {
           if (e.target === dialogRef.current) setShowSettings(false);
         }}
         style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          inset: "auto",
+          margin: 0,
           width: "min(720px, 100%)",
           maxHeight: "calc(100vh - 96px)",
           padding: 32,
@@ -394,6 +399,7 @@ function Home() {
           borderRadius: 20,
           background: "#10142a",
           color: "#e6e9f5",
+          overflowY: "auto",
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>

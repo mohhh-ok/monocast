@@ -1,8 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type { LlmAdapter } from "./llm";
 import type { NewsItem } from "./news";
-import { getConfig } from "@/config";
-
-export type LlmProvider = "anthropic" | "ollama";
 
 const SYSTEM_PROMPT = `あなたは「ききながしラジオ」のパーソナリティです。
 作業中や寝る前に流して心地よい、落ち着いたトーンの日本語ナレーション原稿を書きます。
@@ -42,7 +39,7 @@ export type ProgramScript = {
 
 export async function generateProgramScript(
   items: NewsItem[],
-  provider: LlmProvider,
+  adapter: LlmAdapter,
 ): Promise<ProgramScript> {
   const itemList = items
     .map(
@@ -60,10 +57,11 @@ ${itemList}
 
 JSON で {"title": "...", "body": "..."} の形で返してください。title は 20 文字以内の番組タイトル、body は読み上げ原稿のみ（記号・マークダウンなし、段落は改行で区切る）。`;
 
-  const parsed =
-    provider === "ollama"
-      ? await callOllama(userPrompt)
-      : await callAnthropic(userPrompt);
+  const parsed = await adapter.generate({
+    systemPrompt: SYSTEM_PROMPT,
+    userPrompt,
+    schema: SCRIPT_SCHEMA,
+  });
 
   return {
     title: parsed.title.trim() || "ききながしニュース",
@@ -74,69 +72,4 @@ JSON で {"title": "...", "body": "..."} の形で返してください。title 
       source: it.source,
     })),
   };
-}
-
-async function callAnthropic(
-  userPrompt: string,
-): Promise<{ title: string; body: string }> {
-  const cfg = await getConfig();
-  const client = new Anthropic();
-  const res = await client.messages.create({
-    model: cfg.anthropicModel,
-    max_tokens: 1500,
-    system: [
-      {
-        type: "text",
-        text: SYSTEM_PROMPT,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    tools: [
-      {
-        name: "submit_script",
-        description: "完成した番組原稿を提出する",
-        input_schema: SCRIPT_SCHEMA,
-      },
-    ],
-    tool_choice: { type: "tool", name: "submit_script" },
-    messages: [{ role: "user", content: userPrompt }],
-  });
-
-  const toolUse = res.content.find(
-    (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
-  );
-  if (!toolUse) {
-    throw new Error("Anthropic から tool_use 応答が返ってこなかった");
-  }
-  return toolUse.input as { title: string; body: string };
-}
-
-async function callOllama(
-  userPrompt: string,
-): Promise<{ title: string; body: string }> {
-  const cfg = await getConfig();
-  const res = await fetch(`${cfg.ollamaUrl}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: cfg.ollamaModel,
-      stream: false,
-      format: SCRIPT_SCHEMA,
-      options: { temperature: 0.7 },
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`Ollama chat failed: ${res.status} ${await res.text()}`);
-  }
-  const data = (await res.json()) as { message?: { content?: string } };
-  const content = data.message?.content ?? "";
-  try {
-    return JSON.parse(content) as { title: string; body: string };
-  } catch {
-    throw new Error(`Ollama JSON parse failed: ${content.slice(0, 200)}`);
-  }
 }

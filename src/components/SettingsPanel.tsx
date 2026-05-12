@@ -100,6 +100,14 @@ export function SettingsPanel({ onClose }: Props) {
 
   const resetSources = () => update("enabledSources", null);
 
+  const toggleLlm = (id: LlmId) => {
+    const has = cfg.selectedLlms.includes(id);
+    update(
+      "selectedLlms",
+      has ? cfg.selectedLlms.filter((x) => x !== id) : [...cfg.selectedLlms, id],
+    );
+  };
+
   const onSave = async () => {
     setStatus({ kind: "saving" });
     const res = await updateConfigFn({ data: cfg });
@@ -139,23 +147,28 @@ export function SettingsPanel({ onClose }: Props) {
       <section style={cardStyle}>
         <h2 style={sectionStyle}>LLM</h2>
 
-        <Field label="プロバイダ">
-          <div style={{ display: "flex", gap: 8 }}>
-            {(["anthropic", "ollama"] as const).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => update("llmProvider", p)}
-                style={pillStyle(cfg.llmProvider === p)}
-              >
-                {p}
-              </button>
+        <Field
+          label="使用する LLM"
+          hint="チェックした数だけ番組が生成されます。各 API キーは環境変数で設定してください。"
+        >
+          <div style={{ display: "grid", gap: 6 }}>
+            {LLM_IDS.map((id) => (
+              <label key={id} style={sourceItemStyle}>
+                <input
+                  type="checkbox"
+                  checked={cfg.selectedLlms.includes(id)}
+                  onChange={() => toggleLlm(id)}
+                />
+                <span style={{ fontSize: 13, color: "#cbd2ee" }}>
+                  {LLM_LABELS[id]}
+                </span>
+              </label>
             ))}
           </div>
         </Field>
 
-        {cfg.llmProvider === "anthropic" ? (
-          <Field label="Anthropic モデル" hint="API キーは環境変数 ANTHROPIC_API_KEY で設定">
+        {cfg.selectedLlms.includes("anthropic") && (
+          <Field label="Anthropic モデル" hint="API キー: ANTHROPIC_API_KEY">
             <input
               type="text"
               value={cfg.anthropicModel}
@@ -163,9 +176,36 @@ export function SettingsPanel({ onClose }: Props) {
               style={inputStyle}
             />
           </Field>
-        ) : (
+        )}
+
+        {cfg.selectedLlms.includes("openai") && (
+          <Field label="OpenAI モデル" hint="API キー: OPENAI_API_KEY">
+            <input
+              type="text"
+              value={cfg.openaiModel}
+              onChange={(e) => update("openaiModel", e.target.value)}
+              style={inputStyle}
+            />
+          </Field>
+        )}
+
+        {cfg.selectedLlms.includes("gemini") && (
+          <Field label="Gemini モデル" hint="API キー: GEMINI_API_KEY">
+            <input
+              type="text"
+              value={cfg.geminiModel}
+              onChange={(e) => update("geminiModel", e.target.value)}
+              style={inputStyle}
+            />
+          </Field>
+        )}
+
+        {cfg.selectedLlms.includes("ollama") && (
           <>
-            <Field label="Ollama URL">
+            <Field
+              label="Ollama URL"
+              hint="OpenAI 互換エンドポイント (/v1/chat/completions) を使用"
+            >
               <input
                 type="url"
                 value={cfg.ollamaUrl}
@@ -182,6 +222,12 @@ export function SettingsPanel({ onClose }: Props) {
               />
             </Field>
           </>
+        )}
+
+        {cfg.selectedLlms.length === 0 && (
+          <div style={{ fontSize: 12, color: "#ffb8c0", marginTop: 8 }}>
+            LLM が選択されていません。番組生成は失敗します。
+          </div>
         )}
       </section>
 
@@ -348,6 +394,13 @@ function Field({
     </div>
   );
 }
+
+const LLM_LABELS: Record<LlmId, string> = {
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+  gemini: "Gemini",
+  ollama: "Ollama (ローカル)",
+};
 
 const eyebrowStyle: React.CSSProperties = {
   fontSize: 12,

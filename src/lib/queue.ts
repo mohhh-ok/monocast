@@ -9,6 +9,7 @@ export type Program = {
   durationSec: number;
   createdAt: string;
   sources: { title: string; link: string; source: string }[];
+  llm: { id: string; label: string; model: string };
 };
 
 const DATA_FILE = path.join(process.cwd(), "data", "queue.json");
