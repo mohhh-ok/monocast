@@ -82,7 +82,7 @@ OLLAMA_MODEL=qwen2.5:7b-instruct
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama エンドポイント |
 | `OLLAMA_MODEL` | `qwen2.5:7b-instruct` | Ollama モデル名 |
 | `VOICEVOX_URL` | `http://localhost:50021` | VOICEVOX エンジン |
-| `VOICEVOX_SPEAKER` | `13` (青山龍星 ノーマル) | 話者 ID。`/speakers` で確認できる |
+| `VOICEVOX_SPEAKER` | `2` (四国めたん ノーマル) | 話者 ID。`/speakers` で確認できる |
 
 話者 ID の例:
 

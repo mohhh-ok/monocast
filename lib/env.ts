@@ -8,7 +8,7 @@ const EnvSchema = z
     OLLAMA_URL: z.string().url().default("http://localhost:11434"),
     OLLAMA_MODEL: z.string().min(1).default("qwen2.5:7b-instruct"),
     VOICEVOX_URL: z.string().url().default("http://localhost:50021"),
-    VOICEVOX_SPEAKER: z.coerce.number().int().default(13),
+    VOICEVOX_SPEAKER: z.coerce.number().int().default(2),
   })
   .superRefine((v, ctx) => {
     if (v.LLM_PROVIDER === "anthropic" && !v.ANTHROPIC_API_KEY) {
