@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { DEFAULT_RSS_URLS } from "./lib/news/defaults";
 
+/** 仮想プロファイル ID。実体ファイルを持たず、選択中は番組生成のたびに既存プロファイルから 1 つランダムに使われる。 */
+export const RANDOM_PROFILE_ID = "__random__";
+export const RANDOM_PROFILE_NAME = "🎲 ランダム";
+
 export const LLM_IDS = ["anthropic", "openai", "gemini", "ollama"] as const;
 export type LlmId = (typeof LLM_IDS)[number];
 

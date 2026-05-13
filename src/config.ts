@@ -6,13 +6,14 @@ import {
   ConfigSchema,
   DEFAULT_CONFIG,
   LLM_IDS,
+  RANDOM_PROFILE_ID,
   TTS_IDS,
   type Config,
   type LlmId,
   type TtsId,
 } from "./config.shared";
 
-export { ConfigSchema, DEFAULT_CONFIG, LLM_IDS, TTS_IDS };
+export { ConfigSchema, DEFAULT_CONFIG, LLM_IDS, RANDOM_PROFILE_ID, TTS_IDS };
 export type { Config, LlmId, TtsId };
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -34,6 +35,7 @@ function profilePath(id: string): string {
 }
 
 function isValidProfileId(id: string): boolean {
+  if (id === RANDOM_PROFILE_ID) return false;
   return /^[A-Za-z0-9_-]+$/.test(id) && id.length > 0 && id.length <= 64;
 }
 
@@ -161,9 +163,21 @@ export async function listProfiles(): Promise<ProfileMeta[]> {
   return metas;
 }
 
+/**
+ * ランダム解決のための「セッション override」。
+ * `withResolvedActiveProfile` で 1 度だけ抽選した実プロファイル id を保持し、
+ * その間の `getActiveProfileId` / `getConfig` を一貫させる（番組生成中に
+ * `getConfig` が複数回呼ばれても毎回違うプロファイルにならないようにする）。
+ * 番組生成は同時に 1 本しか走らない前提なのでモジュールスコープで足りる。
+ */
+let sessionResolvedId: string | null = null;
+
 export async function getActiveProfileId(): Promise<string> {
+  if (sessionResolvedId) return sessionResolvedId;
   await ensureMigrated();
   const { activeProfileId } = await readRoot();
+  // ランダム選択中はそのまま返す（fallback しない）
+  if (activeProfileId === RANDOM_PROFILE_ID) return RANDOM_PROFILE_ID;
   // アクティブが消えていたら最初のプロファイルにフォールバック
   const file = await readProfileFile(activeProfileId);
   if (file) return activeProfileId;
@@ -171,9 +185,36 @@ export async function getActiveProfileId(): Promise<string> {
   return list[0]?.id ?? DEFAULT_PROFILE_ID;
 }
 
+/** ランダム選択中なら実プロファイルに解決した id を返す。session override 優先。 */
+export async function resolveActiveProfileId(): Promise<string> {
+  if (sessionResolvedId) return sessionResolvedId;
+  const id = await getActiveProfileId();
+  if (id !== RANDOM_PROFILE_ID) return id;
+  const list = await listProfiles();
+  if (list.length === 0) return DEFAULT_PROFILE_ID;
+  return list[Math.floor(Math.random() * list.length)].id;
+}
+
+/**
+ * 1 セッション分だけランダムを解決して固定する。fn の中で呼ばれた `getConfig` /
+ * `getActiveProfileId` は同じプロファイルを返す。
+ */
+export async function withResolvedActiveProfile<T>(
+  fn: (profileId: string) => Promise<T>,
+): Promise<T> {
+  const id = await resolveActiveProfileId();
+  const prev = sessionResolvedId;
+  sessionResolvedId = id;
+  try {
+    return await fn(id);
+  } finally {
+    sessionResolvedId = prev;
+  }
+}
+
 /** アクティブプロファイルの Config を返す。読めなければ DEFAULT_CONFIG。 */
 export async function getConfig(): Promise<Config> {
-  const id = await getActiveProfileId();
+  const id = await resolveActiveProfileId();
   const p = await readProfileFile(id);
   return p?.config ?? DEFAULT_CONFIG;
 }
@@ -264,8 +305,10 @@ export async function deleteProfile(id: string): Promise<{ activeProfileId: stri
 export async function setActiveProfile(id: string): Promise<void> {
   return runExclusive(async () => {
     await ensureMigrated();
-    const p = await readProfileFile(id);
-    if (!p) throw new Error("プロファイルが見つかりません");
+    if (id !== RANDOM_PROFILE_ID) {
+      const p = await readProfileFile(id);
+      if (!p) throw new Error("プロファイルが見つかりません");
+    }
     await writeRoot(id);
   });
 }

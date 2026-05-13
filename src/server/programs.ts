@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { getActiveProfileId } from "@/config";
+import { withResolvedActiveProfile } from "@/config";
 import { formatErrorChain } from "@/lib/error";
 import { pickAdapter } from "@/lib/llm";
 import { ProduceAbortedError, produceProgram, type ProducePhase } from "@/lib/produce";
@@ -39,34 +39,38 @@ export const generateProgramFn = createServerFn({ method: "POST" }).handler(
   async (): Promise<GenerateResult> => {
     if (inFlight) return { status: "already-running" };
 
-    const controller = new AbortController();
-    const profileId = await getActiveProfileId();
-    const state: InFlight = { controller, phase: "news", profileId };
-    inFlight = state;
+    // ランダム選択中なら 1 本分だけ実プロファイルに解決する。中の `getConfig` は
+    // すべてその id を返すので、ニュース取得 / LLM / TTS が違うプロファイルから
+    // 混ざることはない。
+    return withResolvedActiveProfile(async (profileId): Promise<GenerateResult> => {
+      const controller = new AbortController();
+      const state: InFlight = { controller, phase: "news", profileId };
+      inFlight = state;
 
-    try {
-      const adapter = await pickAdapter();
-      const r = await produceProgram(adapter, {
-        signal: controller.signal,
-        onPhase: (phase) => {
-          // inFlight が既に置き換わっていれば無視（基本起きないが安全側に）。
-          if (inFlight === state) state.phase = phase;
-        },
-      });
-      if (r.status === "empty") return { status: "empty", reason: r.reason };
-      return { status: "ok", program: r.program };
-    } catch (err) {
-      if (err instanceof ProduceAbortedError) {
-        const reason =
-          typeof controller.signal.reason === "string"
-            ? controller.signal.reason
-            : err.message;
-        return { status: "aborted", reason };
+      try {
+        const adapter = await pickAdapter();
+        const r = await produceProgram(adapter, {
+          signal: controller.signal,
+          onPhase: (phase) => {
+            // inFlight が既に置き換わっていれば無視（基本起きないが安全側に）。
+            if (inFlight === state) state.phase = phase;
+          },
+        });
+        if (r.status === "empty") return { status: "empty", reason: r.reason };
+        return { status: "ok", program: r.program };
+      } catch (err) {
+        if (err instanceof ProduceAbortedError) {
+          const reason =
+            typeof controller.signal.reason === "string"
+              ? controller.signal.reason
+              : err.message;
+          return { status: "aborted", reason };
+        }
+        return { status: "error", message: formatErrorChain(err).message };
+      } finally {
+        if (inFlight === state) inFlight = null;
       }
-      return { status: "error", message: formatErrorChain(err).message };
-    } finally {
-      if (inFlight === state) inFlight = null;
-    }
+    });
   },
 );
 

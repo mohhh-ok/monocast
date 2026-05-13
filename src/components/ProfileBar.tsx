@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { RANDOM_PROFILE_ID, RANDOM_PROFILE_NAME } from "@/config.shared";
 import type { ProfilesState } from "@/server/settings";
 import { SearchableSelect } from "./SearchableSelect";
 
@@ -19,6 +20,21 @@ export function ProfileBar({
   onEdit,
   onDelete,
 }: Props) {
+  const isRandom = profiles.activeProfileId === RANDOM_PROFILE_ID;
+  // 実プロファイルが 1 つ以下ならランダムは無意味なので隠す。
+  const showRandom = profiles.profiles.length >= 2 || isRandom;
+  const options = [
+    ...profiles.profiles.map((p) => ({ value: p.id, label: p.name })),
+    ...(showRandom
+      ? [{ value: RANDOM_PROFILE_ID, label: RANDOM_PROFILE_NAME }]
+      : []),
+  ];
+  const dimStyle = (disabled: boolean): CSSProperties => ({
+    ...btnStyle,
+    opacity: disabled ? 0.4 : 1,
+    cursor: disabled ? "not-allowed" : "pointer",
+  });
+
   return (
     <section
       style={{
@@ -36,7 +52,7 @@ export function ProfileBar({
       </span>
       <SearchableSelect
         value={profiles.activeProfileId}
-        options={profiles.profiles.map((p) => ({ value: p.id, label: p.name }))}
+        options={options}
         onChange={onSwitch}
         style={{ flex: "1 1 200px" }}
         inputStyle={{ padding: "8px 12px" }}
@@ -45,20 +61,27 @@ export function ProfileBar({
       <button type="button" onClick={() => onCreate(false)} style={btnStyle}>
         新規
       </button>
-      <button type="button" onClick={() => onCreate(true)} style={btnStyle}>
+      <button
+        type="button"
+        onClick={() => onCreate(true)}
+        disabled={isRandom}
+        style={dimStyle(isRandom)}
+      >
         複製
       </button>
-      <button type="button" onClick={onEdit} style={btnStyle}>
+      <button
+        type="button"
+        onClick={onEdit}
+        disabled={isRandom}
+        style={dimStyle(isRandom)}
+      >
         編集
       </button>
       <button
         type="button"
         onClick={onDelete}
-        disabled={profiles.profiles.length <= 1}
-        style={{
-          ...btnStyle,
-          opacity: profiles.profiles.length <= 1 ? 0.4 : 1,
-        }}
+        disabled={isRandom || profiles.profiles.length <= 1}
+        style={dimStyle(isRandom || profiles.profiles.length <= 1)}
       >
         削除
       </button>

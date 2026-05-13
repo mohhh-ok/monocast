@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type Config } from "@/config.shared";
+import { RANDOM_PROFILE_ID, type Config } from "@/config.shared";
 import {
   fetchAivisSpeakersFn,
   fetchKokoroVoicesFn,
@@ -9,6 +9,7 @@ import {
   fetchSpeakersFn,
   listProfilesFn,
   loadConfigFn,
+  loadProfileConfigFn,
   renameProfileFn,
   updateConfigFn,
   type KokoroVoiceOption,
@@ -65,11 +66,25 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
       fetchSayVoicesFn(),
       fetchSapiVoicesFn(),
       fetchKokoroVoicesFn(),
-    ]).then(([c, pf, sp, asp, sv, sapi, kv]) => {
+    ]).then(async ([c, pf, sp, asp, sv, sapi, kv]) => {
       if (cancelled) return;
-      setCfg(c);
-      editingProfileIdRef.current = pf.activeProfileId;
-      const active = pf.profiles.find((p) => p.id === pf.activeProfileId);
+      // ランダム選択中は実プロファイルを編集できないので、先頭の実プロファイルに
+      // 編集対象を倒す（/settings を直接開いたケース向け。普段は ProfileBar の
+      // 編集ボタンがランダム中は無効化されているのでここに来ない）。
+      let editId = pf.activeProfileId;
+      let editCfg: Config = c;
+      if (editId === RANDOM_PROFILE_ID) {
+        const fallback = pf.profiles[0];
+        if (fallback) {
+          editId = fallback.id;
+          const loaded = await loadProfileConfigFn({ data: { id: fallback.id } });
+          if (loaded) editCfg = loaded;
+        }
+      }
+      if (cancelled) return;
+      setCfg(editCfg);
+      editingProfileIdRef.current = editId;
+      const active = pf.profiles.find((p) => p.id === editId);
       setProfileName(active?.name ?? "");
       setSpeakers(sp);
       setAivisSpeakers(asp);
