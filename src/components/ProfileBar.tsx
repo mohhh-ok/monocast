@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { RANDOM_PROFILE_ID, RANDOM_PROFILE_NAME } from "@/config.shared";
 import type { ProfilesState } from "@/server/settings";
 import { SearchableSelect } from "./SearchableSelect";
@@ -35,6 +35,33 @@ export function ProfileBar({
     cursor: disabled ? "not-allowed" : "pointer",
   });
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDocPointerDown = (e: PointerEvent) => {
+      if (!menuRootRef.current) return;
+      if (!menuRootRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onDocPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDocPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  const duplicateDisabled = isRandom;
+  const deleteDisabled = isRandom || profiles.profiles.length <= 1;
+
+  const runMenu = (fn: () => void) => {
+    setMenuOpen(false);
+    fn();
+  };
+
   return (
     <section
       style={{
@@ -58,17 +85,6 @@ export function ProfileBar({
         inputStyle={{ padding: "8px 12px" }}
       />
 
-      <button type="button" onClick={() => onCreate(false)} style={btnStyle}>
-        新規
-      </button>
-      <button
-        type="button"
-        onClick={() => onCreate(true)}
-        disabled={isRandom}
-        style={dimStyle(isRandom)}
-      >
-        複製
-      </button>
       <button
         type="button"
         onClick={onEdit}
@@ -77,14 +93,54 @@ export function ProfileBar({
       >
         編集
       </button>
-      <button
-        type="button"
-        onClick={onDelete}
-        disabled={isRandom || profiles.profiles.length <= 1}
-        style={dimStyle(isRandom || profiles.profiles.length <= 1)}
-      >
-        削除
-      </button>
+
+      <div ref={menuRootRef} style={{ position: "relative" }}>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          style={btnStyle}
+          title="その他の操作"
+        >
+          その他 ▾
+        </button>
+        {menuOpen && (
+          <div role="menu" style={menuStyle}>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => runMenu(() => onCreate(false))}
+              style={menuItemStyle(false)}
+            >
+              新規
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => runMenu(() => onCreate(true))}
+              disabled={duplicateDisabled}
+              style={menuItemStyle(duplicateDisabled)}
+            >
+              複製
+            </button>
+            <div style={menuSeparatorStyle} />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => runMenu(onDelete)}
+              disabled={deleteDisabled}
+              style={{
+                ...menuItemStyle(deleteDisabled),
+                color: deleteDisabled ? "#e6e9f5" : "#ffb8c0",
+              }}
+            >
+              削除
+            </button>
+          </div>
+        )}
+      </div>
+
       {errorMessage && (
         <div
           style={{
@@ -111,3 +167,37 @@ const btnStyle: CSSProperties = {
   whiteSpace: "nowrap",
   cursor: "pointer",
 };
+
+const menuStyle: CSSProperties = {
+  position: "absolute",
+  top: "calc(100% + 4px)",
+  right: 0,
+  minWidth: 140,
+  padding: 4,
+  background: "#1a1d2e",
+  border: "1px solid rgba(255,255,255,0.12)",
+  borderRadius: 8,
+  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+  zIndex: 20,
+  display: "flex",
+  flexDirection: "column",
+};
+
+const menuSeparatorStyle: CSSProperties = {
+  height: 1,
+  margin: "4px 2px",
+  background: "rgba(255,255,255,0.08)",
+};
+
+const menuItemStyle = (disabled: boolean): CSSProperties => ({
+  textAlign: "left",
+  padding: "8px 10px",
+  borderRadius: 6,
+  background: "transparent",
+  border: "none",
+  color: "#e6e9f5",
+  fontSize: 13,
+  cursor: disabled ? "not-allowed" : "pointer",
+  opacity: disabled ? 0.4 : 1,
+  fontFamily: "inherit",
+});
