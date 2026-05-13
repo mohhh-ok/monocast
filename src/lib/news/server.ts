@@ -1,8 +1,8 @@
 import { log } from "../log";
-import { createRssAdapter } from "./adapters/rss";
-import type { NewsItem } from "./types";
+import { createRssAdapter } from "./adapters/rss/server";
+import type { NewsItem } from "./adapters/types";
 
-export type { NewsAdapter, NewsItem } from "./types";
+export type { NewsAdapter, NewsItem } from "./adapters/types";
 export { DEFAULT_RSS_URLS } from "./defaults";
 
 export type FetchNewsResult = {

@@ -21,3 +21,5 @@ export type LlmAdapter = {
   readonly model: string;
   generate(input: LlmGenerateInput): Promise<LlmGenerateOutput>;
 };
+
+export type LlmCommon = {};

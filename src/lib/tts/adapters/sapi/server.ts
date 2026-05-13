@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { runProc } from "../../../proc";
+import { runProc } from "@/lib/proc";
 import type { SynthesizeOptions, TtsAdapter } from "../types";
 import { appendSilenceToWav } from "../../wav";
 

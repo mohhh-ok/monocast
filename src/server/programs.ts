@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { withResolvedActiveProfile } from "@/config";
 import { formatErrorChain } from "@/lib/error";
-import { pickAdapter } from "@/lib/llm";
+import { pickAdapter } from "@/lib/llm/server";
 import { ProduceAbortedError, produceProgram, type ProducePhase } from "@/lib/produce";
 import { listPrograms, removeProgram, type Program } from "@/lib/queue";
 

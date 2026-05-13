@@ -15,3 +15,5 @@ export type NewsAdapter = {
   /** 1 adapter が返す件数の上限を渡して取得する。 */
   fetch(limit: number): Promise<NewsItem[]>;
 };
+
+export type NewsCommon = {};

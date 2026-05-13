@@ -1,12 +1,12 @@
 import { getConfig } from "@/config";
 import { getEnv } from "@/lib/env";
-import { createAnthropicAdapter } from "./adapters/anthropic";
-import { createGeminiAdapter } from "./adapters/gemini";
-import { createOllamaAdapter } from "./adapters/ollama";
-import { createOpenAiCompatAdapter } from "./adapters/openai-compat";
-import type { LlmAdapter, LlmId } from "./types";
+import { createAnthropicAdapter } from "./adapters/anthropic/server";
+import { createGeminiAdapter } from "./adapters/gemini/server";
+import { createOllamaAdapter } from "./adapters/ollama/server";
+import { createOpenAiCompatAdapter } from "./adapters/openai-compat/server";
+import type { LlmAdapter, LlmId } from "./adapters/types";
 
-export type { LlmAdapter, LlmGenerateInput, LlmGenerateOutput, LlmId } from "./types";
+export type { LlmAdapter, LlmGenerateInput, LlmGenerateOutput, LlmId } from "./adapters/types";
 
 /** 設定で選択されている LLM を adapter として返す。 */
 export async function pickAdapter(): Promise<LlmAdapter> {

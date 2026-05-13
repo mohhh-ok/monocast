@@ -1,5 +1,5 @@
 import Parser from "rss-parser";
-import { log } from "../../log";
+import { log } from "@/lib/log";
 import type { NewsAdapter, NewsItem } from "../types";
 
 export type RssAdapterOptions = {
@@ -58,7 +58,7 @@ export function createRssAdapter(opts: RssAdapterOptions): NewsAdapter {
     name,
     async fetch(_limit: number): Promise<NewsItem[]> {
       // node:sqlite を含むので動的 import（クライアントバンドル混入防止）
-      const cache = cacheTtlMs > 0 ? await import("../cache") : null;
+      const cache = cacheTtlMs > 0 ? await import("../../cache") : null;
 
       const cachedItems: NewsItem[] = [];
       const pending: string[] = [];

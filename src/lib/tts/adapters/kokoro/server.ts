@@ -1,4 +1,4 @@
-import { log } from "../../../log";
+import { log } from "@/lib/log";
 import type { SynthesizeOptions, TtsAdapter } from "../types";
 import { appendSilenceToWav, readWavSampleRate } from "../../wav";
 

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { z } from "zod";
 import { openSqliteOnce } from "../sqlite";
-import { type NewsItem, NewsItemSchema } from "./types";
+import { type NewsItem, NewsItemSchema } from "./adapters/types";
 
 const DB_FILE = path.join(process.cwd(), "data", "rss-cache.sqlite");
 

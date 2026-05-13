@@ -1,6 +1,6 @@
 import { languageHumanName } from "./lang";
-import type { LlmAdapter } from "./llm";
-import type { NewsItem } from "./news";
+import type { LlmAdapter } from "./llm/adapters/types";
+import type { NewsItem } from "./news/adapters/types";
 
 function buildSystemPrompt(languageCode: string): string {
   const isJa = languageCode === "ja" || languageCode === "";
