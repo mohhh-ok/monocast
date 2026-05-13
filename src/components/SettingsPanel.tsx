@@ -8,7 +8,6 @@ import {
   fetchSayVoicesFn,
   fetchSpeakersFn,
   listProfilesFn,
-  listSourcesFn,
   loadConfigFn,
   renameProfileFn,
   updateConfigFn,
@@ -16,7 +15,6 @@ import {
   type ProfilesState,
   type SapiVoiceOption,
   type SayVoiceOption,
-  type SourceOption,
   type SpeakerOption,
 } from "@/server/settings";
 import { LlmSection } from "./settings/LlmSection";
@@ -46,7 +44,6 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
   const [sayVoices, setSayVoices] = useState<SayVoiceOption[]>([]);
   const [sapiVoices, setSapiVoices] = useState<SapiVoiceOption[]>([]);
   const [kokoroVoices, setKokoroVoices] = useState<KokoroVoiceOption[]>([]);
-  const [sources, setSources] = useState<SourceOption[]>([]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
   // 編集中プロファイル（保存先）の id。表に出した切替 UI から書き換わる可能性に備えて
@@ -68,8 +65,7 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
       fetchSayVoicesFn(),
       fetchSapiVoicesFn(),
       fetchKokoroVoicesFn(),
-      listSourcesFn(),
-    ]).then(([c, pf, sp, asp, sv, sapi, kv, src]) => {
+    ]).then(([c, pf, sp, asp, sv, sapi, kv]) => {
       if (cancelled) return;
       setCfg(c);
       editingProfileIdRef.current = pf.activeProfileId;
@@ -80,7 +76,6 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
       setSayVoices(sv);
       setSapiVoices(sapi);
       setKokoroVoices(kv);
-      setSources(src);
     });
     return () => {
       cancelled = true;
@@ -194,9 +189,8 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
       />
 
       <NewsSourcesSection
-        sources={sources}
-        enabledSources={cfg.enabledSources}
-        onChange={(next) => update("enabledSources", next)}
+        rssUrls={cfg.rssUrls}
+        onChange={(next) => update("rssUrls", next)}
       />
 
       <LlmSection cfg={cfg} update={update} />

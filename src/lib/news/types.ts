@@ -15,21 +15,3 @@ export type NewsAdapter = {
   /** 1 adapter が返す件数の上限を渡して取得する。 */
   fetch(limit: number): Promise<NewsItem[]>;
 };
-
-export const SOURCE_CATEGORIES = ["japan", "global"] as const;
-export const SourceCategorySchema = z.enum(SOURCE_CATEGORIES);
-export type SourceCategory = z.infer<typeof SourceCategorySchema>;
-
-export const CATEGORY_LABELS: Record<SourceCategory, string> = {
-  japan: "日本",
-  global: "グローバル",
-};
-
-export const CATEGORY_ORDER: readonly SourceCategory[] = ["japan", "global"];
-
-export const SourceOptionSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  category: SourceCategorySchema,
-});
-export type SourceOption = z.infer<typeof SourceOptionSchema>;

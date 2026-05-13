@@ -1,20 +1,11 @@
 import Parser from "rss-parser";
 import { log } from "../../log";
-import type { NewsAdapter, NewsItem, SourceCategory } from "../types";
-
-export type RssFeed = {
-  /** 設定保存に使う安定 ID。 */
-  id: string;
-  /** ソース表示名。NewsItem.source に入る。 */
-  name: string;
-  url: string;
-  category: SourceCategory;
-};
+import type { NewsAdapter, NewsItem } from "../types";
 
 export type RssAdapterOptions = {
   /** adapter 識別子。複数 RSS adapter を併存させる場合に区別する。 */
   name?: string;
-  feeds: RssFeed[];
+  urls: string[];
   timeoutMs?: number;
   /** 1 フィードあたりの取得上限。 */
   perFeedLimit?: number;
@@ -32,8 +23,19 @@ function getDomain(url: string): string {
   }
 }
 
+type ParsedFeed = {
+  title?: string;
+  items?: { title?: string; link?: string; pubDate?: string; contentSnippet?: string }[];
+};
+
+function deriveSourceName(feed: ParsedFeed, url: string): string {
+  const t = (feed.title ?? "").trim();
+  if (t) return t;
+  return getDomain(url);
+}
+
 function toNewsItems(
-  feed: { items?: { title?: string; link?: string; pubDate?: string; contentSnippet?: string }[] },
+  feed: ParsedFeed,
   source: string,
   perFeedLimit: number,
 ): NewsItem[] {
@@ -59,42 +61,43 @@ export function createRssAdapter(opts: RssAdapterOptions): NewsAdapter {
       const cache = cacheTtlMs > 0 ? await import("../cache") : null;
 
       const cachedItems: NewsItem[] = [];
-      const pending: RssFeed[] = [];
-      for (const f of opts.feeds) {
-        const c = cache?.getCached(f.id, cacheTtlMs) ?? null;
+      const pending: string[] = [];
+      for (const url of opts.urls) {
+        const c = cache?.getCached(url, cacheTtlMs) ?? null;
         if (c) cachedItems.push(...c);
-        else pending.push(f);
+        else pending.push(url);
       }
       if (cache && cachedItems.length > 0) {
         log.info(
           name,
-          `キャッシュヒット ${opts.feeds.length - pending.length}/${opts.feeds.length} フィード`,
+          `キャッシュヒット ${opts.urls.length - pending.length}/${opts.urls.length} フィード`,
         );
       }
 
       // 残りはドメイン単位で直列、ドメイン同士は並列
       const fetchedItems: NewsItem[] = [];
       if (pending.length > 0) {
-        const byDomain = new Map<string, RssFeed[]>();
-        for (const f of pending) {
-          const d = getDomain(f.url);
+        const byDomain = new Map<string, string[]>();
+        for (const url of pending) {
+          const d = getDomain(url);
           const arr = byDomain.get(d);
-          if (arr) arr.push(f);
-          else byDomain.set(d, [f]);
+          if (arr) arr.push(url);
+          else byDomain.set(d, [url]);
         }
 
         await Promise.all(
           Array.from(byDomain.values()).map(async (group) => {
-            for (const f of group) {
+            for (const url of group) {
               try {
-                const feed = await parser.parseURL(f.url);
-                const items = toNewsItems(feed, f.name, perFeedLimit);
+                const feed = await parser.parseURL(url);
+                const source = deriveSourceName(feed, url);
+                const items = toNewsItems(feed, source, perFeedLimit);
                 fetchedItems.push(...items);
-                cache?.putCached(f.id, items);
+                cache?.putCached(url, items);
               } catch (err) {
                 log.warn(
                   name,
-                  `フィード取得失敗 ${f.id}: ${err instanceof Error ? err.message : String(err)}`,
+                  `フィード取得失敗 ${url}: ${err instanceof Error ? err.message : String(err)}`,
                 );
               }
             }

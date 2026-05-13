@@ -77,7 +77,7 @@ export async function produceProgram(
     const tNews = Date.now();
     const { items: news, candidateCount, seenCount } = await fetchNews(
       NEWS_ITEMS_PER_PROGRAM,
-      cfg.enabledSources,
+      cfg.rssUrls,
     );
     log.info(
       tag,

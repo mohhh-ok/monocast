@@ -100,14 +100,11 @@ curl -s http://localhost:8880/v1/audio/voices | jq
 
 ### ニュースソース
 
-設定画面でカテゴリ単位で ON/OFF できる。既定は全 ON。
+設定画面の textarea に **1 行 1 URL** で RSS / Atom フィードを記述する。既定では NHK・はてブ・Publickey・ITmedia・GIGAZINE・Zenn・TechCrunch・The Verge・BBC・Hacker News などをまとめた URL 一覧が入っている（`src/lib/news/defaults.ts`）。「取得テスト」ボタンで各 URL の取得可否とフィードタイトルを確認できる。ソース表示名は RSS の `<title>` を採用し、取れなければホスト名にフォールバックする。
 
-- **日本**: NHK（主要 / 社会 / 文化 / 科学医療 / 経済 / 国際 / スポーツ）、Publickey、ITmedia NEWS、GIGAZINE、Zenn、はてブ（総合 / Tech / 暮らし / 政治と経済 / おもしろ）
-- **グローバル（英語は LLM で和訳）**: BBC 日本語、TechCrunch、The Verge、BBC News、Hacker News
+取得した記事は **ソース別バケットからラウンドロビンで 1 件ずつ取る** ように選出する。フィード本数が多いソースに結果が支配されないようにしている。
 
-取得した記事は **カテゴリに均等にクォータを割り当て、カテゴリ内では各ソースからラウンドロビンで 1 件ずつ取る** ように選出する。フィード本数が多いカテゴリに結果が支配されないようにしている。
-
-各フィードは **SQLite に 30 分キャッシュ**し、同一ドメインのフィードは直列で叩いて相手側に負荷をかけないようにしている（`data/rss-cache.sqlite`）。
+各フィードは **SQLite に 30 分キャッシュ**し、同一ドメインのフィードは直列で叩いて相手側に負荷をかけないようにしている（`data/rss-cache.sqlite`）。キャッシュキーは URL そのもの。
 
 過去 14 日に番組化済みの URL は SQLite (`seen_urls`) で除外しているので、同じニュースが繰り返し読まれない。
 

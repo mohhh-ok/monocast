@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import Parser from "rss-parser";
 import { z } from "zod";
 import { runProc } from "@/lib/proc";
 import {
@@ -15,8 +16,6 @@ import {
   type Config,
   type ProfileMeta,
 } from "@/config";
-import { listSources, SourceOptionSchema } from "@/lib/news";
-import type { SourceOption } from "@/lib/news";
 import type { ProducePhase } from "@/lib/produce";
 import { cancelInFlight, getInFlightSnapshot } from "./programs";
 
@@ -51,7 +50,7 @@ const TTS_KEYS: ReadonlyArray<keyof Config> = [
   "kokoroVoice",
   "ttsConcurrency",
 ];
-const SOURCE_KEYS: ReadonlyArray<keyof Config> = ["enabledSources"];
+const SOURCE_KEYS: ReadonlyArray<keyof Config> = ["rssUrls"];
 
 const PHASE_AFFECTING_KEYS: Record<ProducePhase, ReadonlySet<keyof Config>> = {
   news: new Set([...SOURCE_KEYS, ...LLM_KEYS, ...TTS_KEYS]),
@@ -91,7 +90,13 @@ export type SayVoiceOption = { name: string; locale: string };
 
 export type SapiVoiceOption = { name: string; locale: string };
 
-export type { SourceOption } from "@/lib/news";
+export type RssFeedProbe = {
+  url: string;
+  status: "ok" | "error";
+  title?: string;
+  itemCount?: number;
+  error?: string;
+};
 
 export const loadConfigFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<Config> => {
@@ -234,18 +239,43 @@ export const setActiveProfileFn = createServerFn({ method: "POST" })
     }
   });
 
-export const listSourcesFn = createServerFn({ method: "GET" }).handler(
-  async (): Promise<SourceOption[]> => {
-    return listSources().flatMap((s) => {
-      const parsed = SourceOptionSchema.safeParse({
-        id: s.id,
-        name: s.name,
-        category: s.category,
-      });
-      return parsed.success ? [parsed.data] : [];
-    });
-  },
-);
+export const probeRssUrlsFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      urls: z.array(z.string()).max(64),
+    }),
+  )
+  .handler(async ({ data }): Promise<RssFeedProbe[]> => {
+    const parser = new Parser({ timeout: 8000 });
+    return Promise.all(
+      data.urls.map(async (url): Promise<RssFeedProbe> => {
+        const trimmed = url.trim();
+        if (!trimmed) {
+          return { url, status: "error", error: "空の URL" };
+        }
+        try {
+          new URL(trimmed);
+        } catch {
+          return { url: trimmed, status: "error", error: "URL 形式が不正" };
+        }
+        try {
+          const feed = await parser.parseURL(trimmed);
+          return {
+            url: trimmed,
+            status: "ok",
+            title: (feed.title ?? "").trim() || undefined,
+            itemCount: feed.items?.length ?? 0,
+          };
+        } catch (err) {
+          return {
+            url: trimmed,
+            status: "error",
+            error: err instanceof Error ? err.message : String(err),
+          };
+        }
+      }),
+    );
+  });
 
 export const fetchSayVoicesFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<SayVoiceOption[]> => {

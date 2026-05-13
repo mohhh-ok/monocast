@@ -34,23 +34,6 @@ export const inputStyle: CSSProperties = {
   fontFamily: "inherit",
 };
 
-export const categoryLabelStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  cursor: "pointer",
-  paddingBottom: 8,
-  borderBottom: "1px solid rgba(255,255,255,0.06)",
-};
-
-export const sourceGroupStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-  gap: 6,
-  paddingTop: 10,
-  paddingLeft: 24,
-};
-
 export const sourceItemStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
