@@ -94,6 +94,8 @@ curl -s http://localhost:50021/speakers | jq '.[] | {name, styles: [.styles[] | 
 
 Kokoro / say / SAPI の voice 一覧は、プロファイルの出力言語で自動的に絞り込まれる（マッチが 0 件なら全件にフォールバック）。
 
+voice 一覧の各行と「現在選択中の voice」の横には 🔊 試聴ボタンがあり、設定画面上部の「試聴テキスト」欄（空欄ならその voice の言語のサンプル文）で音声を試せる。
+
 Kokoro の voice 一覧は設定画面の「Voice」セレクトに自動で並ぶ（言語推定付き）。CLI で確認したい場合は以下:
 
 ```bash

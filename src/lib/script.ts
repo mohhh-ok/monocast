@@ -24,7 +24,7 @@ function buildSystemPrompt(languageCode: string): string {
   return `You are the host of a calm, ambient-listening radio program called "Monocast".
 The script is meant to be played in the background while working or before sleep, so the tone stays soft and steady.
 
-Write the entire narration in ${langName}. Translate or paraphrase any source material that is in another language; never read the original text verbatim if it is not in ${langName}.
+The user prompt that follows is written in Japanese for convenience, but the output language is strictly ${langName} (${languageCode}). Write the entire narration — title and body — in ${langName}. Translate or paraphrase any source material that is in another language; never read the original text verbatim if it is not in ${langName}, and do not leave Japanese characters in the output even for proper nouns.
 
 Rules:
 - Solo monologue. Address the listener sparingly and gently.
@@ -139,15 +139,24 @@ export async function generateProgramScript(
     ? `\n\n出力例（形式の参考のみ。title は毎回ゼロから考えること。例の文字列をそのまま使わない）:\n{"title":"（ここに 20 文字以内の番組タイトル）","body":"${exampleBody(slot)}"}`
     : "";
 
-  const languageDirective = isJa
+  // 出力言語が日本語以外のときは、user prompt の冒頭に強い指示を置く。
+  // 末尾に小さく添えるだけだと、ニュース素材や指示文の日本語に引きずられて
+  // 日本語で返ってきてしまう。
+  const languageHeader = isJa
     ? ""
-    : `\n\nOutput language: ${langName} (${languageCode}). Write title and body entirely in ${langName}, even though these instructions are in Japanese.`;
+    : `[OUTPUT LANGUAGE — STRICT]
+The following instructions and source items are written in Japanese, but the output must be entirely in ${langName} (${languageCode}).
+- Write the JSON values for "title" and "body" only in ${langName}.
+- Translate or paraphrase any Japanese source items into ${langName}; never quote them verbatim in Japanese.
+- Do not mix Japanese characters into the output, even for proper nouns — use the ${langName} reading.
+
+`;
 
   const notesDirective = languageNotes
     ? `\n\n追加のニュアンス指示（言語スタイル）: ${languageNotes}`
     : "";
 
-  const userPrompt = `以下の ${items.length} 件のニュース項目を素材に、ききながしラジオの 1 番組分の原稿を書いてください。${items.length} 件すべてを必ず紹介してください。素材を間引いたり、複数の素材を1つにまとめたりしないでください。
+  const userPrompt = `${languageHeader}以下の ${items.length} 件のニュース項目を素材に、ききながしラジオの 1 番組分の原稿を書いてください。${items.length} 件すべてを必ず紹介してください。素材を間引いたり、複数の素材を1つにまとめたりしないでください。
 
 配信時間帯: ${slot}
 
@@ -163,7 +172,7 @@ title（番組タイトル）のルール:
 - 「○○の○○便」「○○の○○ラジオ」のようなテンプレ語尾に固執しない。毎回語感を変える。
 - 過度に煽情的・断定的な見出しは避け、心地よい落ち着いた語感にする。
 
-body は必ず段落ごとに改行 \\n で区切り、1記事の段落は 250〜400 字に収めてください。改行ゼロのベタ書きや、250 字に満たない短い段落は不可です。${languageDirective}${notesDirective}${exampleLine}`;
+body は必ず段落ごとに改行 \\n で区切り、1記事の段落は 250〜400 字に収めてください。改行ゼロのベタ書きや、250 字に満たない短い段落は不可です。${notesDirective}${exampleLine}`;
 
   const parsed = await adapter.generate({
     systemPrompt: buildSystemPrompt(languageCode),
@@ -182,8 +191,10 @@ body は必ず段落ごとに改行 \\n で区切り、1記事の段落は 250�
     );
   }
 
+  // LLM がタイトルを空で返した場合のフォールバック。slot を使った日本語ラベルは
+  // 多言語で崩壊するので、ブランド名で統一する。
   return {
-    title: title.trim() || `${slot}のニュース`,
+    title: title.trim() || "Monocast",
     body: body.trim(),
     sources: items.map((it) => ({
       title: it.title,

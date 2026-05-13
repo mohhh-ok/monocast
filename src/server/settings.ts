@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import Parser from "rss-parser";
 import { z } from "zod";
+import { getEnv } from "@/lib/env";
 import { runProc } from "@/lib/proc";
 import {
   ConfigSchema,
@@ -17,6 +18,14 @@ import {
   type ProfileMeta,
 } from "@/config";
 import type { ProducePhase } from "@/lib/produce";
+import { createAivisSpeechAdapter } from "@/lib/tts/adapters/aivisspeech";
+import { createElevenLabsAdapter } from "@/lib/tts/adapters/elevenlabs";
+import { createKokoroAdapter } from "@/lib/tts/adapters/kokoro";
+import { createOpenAiTtsAdapter } from "@/lib/tts/adapters/openai";
+import { createSapiAdapter } from "@/lib/tts/adapters/sapi";
+import { createSayAdapter } from "@/lib/tts/adapters/say";
+import { createVoicevoxAdapter } from "@/lib/tts/adapters/voicevox";
+import type { TtsAdapter } from "@/lib/tts/types";
 import { cancelInFlight, getInFlightSnapshot } from "./programs";
 
 // 進行中フェーズで実際に「使う」設定キー。これらが変わったらキャンセル対象。
@@ -551,5 +560,90 @@ export const checkEngineHealthFn = createServerFn({ method: "POST" })
       };
     } finally {
       clearTimeout(timer);
+    }
+  });
+
+/**
+ * 試聴用 adapter を構築。各エンジンの voice 値だけ override 可能で、
+ * 他のパラメータ (URL / rate / model 等) は現在の cfg をそのまま使う。
+ */
+function buildPreviewAdapter(cfg: Config, voice: string | number): TtsAdapter {
+  switch (cfg.selectedTts) {
+    case "voicevox":
+      return createVoicevoxAdapter({
+        voicevoxUrl: cfg.voicevoxUrl,
+        speaker: Number(voice),
+      });
+    case "aivisspeech":
+      return createAivisSpeechAdapter({
+        url: cfg.aivisSpeechUrl,
+        speaker: Number(voice),
+      });
+    case "say":
+      return createSayAdapter({
+        voice: typeof voice === "string" && voice ? voice : undefined,
+        rate: cfg.sayRate,
+      });
+    case "sapi":
+      return createSapiAdapter({
+        voice: typeof voice === "string" && voice ? voice : undefined,
+        rate: cfg.sapiRate,
+      });
+    case "openai": {
+      const env = getEnv();
+      if (!env.OPENAI_API_KEY) {
+        throw new Error("OPENAI_API_KEY が設定されていません");
+      }
+      return createOpenAiTtsAdapter({
+        apiKey: env.OPENAI_API_KEY,
+        model: cfg.openaiTtsModel,
+        voice: String(voice),
+      });
+    }
+    case "elevenlabs": {
+      const env = getEnv();
+      if (!env.ELEVENLABS_API_KEY) {
+        throw new Error("ELEVENLABS_API_KEY が設定されていません");
+      }
+      return createElevenLabsAdapter({
+        apiKey: env.ELEVENLABS_API_KEY,
+        modelId: cfg.elevenlabsModelId,
+        voiceId: String(voice),
+      });
+    }
+    case "kokoro":
+      return createKokoroAdapter({
+        url: cfg.kokoroUrl,
+        voice: String(voice),
+      });
+  }
+}
+
+export type TtsPreviewResult =
+  | { status: "ok"; audioBase64: string; mime: string }
+  | { status: "error"; message: string };
+
+export const previewTtsVoiceFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      voice: z.union([z.string(), z.number()]),
+      text: z.string().min(1).max(500),
+    }),
+  )
+  .handler(async ({ data }): Promise<TtsPreviewResult> => {
+    try {
+      const cfg = await getConfig();
+      const adapter = buildPreviewAdapter(cfg, data.voice);
+      const wav = await adapter.synthesize(data.text, { trailingSilenceSec: 0 });
+      return {
+        status: "ok",
+        audioBase64: wav.toString("base64"),
+        mime: "audio/wav",
+      };
+    } catch (err) {
+      return {
+        status: "error",
+        message: err instanceof Error ? err.message : String(err),
+      };
     }
   });

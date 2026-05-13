@@ -6,6 +6,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
 
 export type SearchableOption = {
@@ -25,6 +26,9 @@ type Props = {
   style?: CSSProperties;
   // 入力欄に当てる style。未指定なら既定スタイル。
   inputStyle?: CSSProperties;
+  // ドロップダウン各行の右端に追加 UI を描画する。試聴ボタン等に使う。
+  // この要素をクリックしても commit は走らない（mousedown を内部で stopPropagation する）。
+  renderRowAction?: (value: string) => ReactNode;
 };
 
 const DEFAULT_INPUT_STYLE: CSSProperties = {
@@ -46,6 +50,7 @@ export function SearchableSelect({
   placeholder,
   style,
   inputStyle,
+  renderRowAction,
 }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -170,7 +175,22 @@ export function SearchableSelect({
                   i === highlight ? "rgba(255,255,255,0.1)" : "transparent",
               }}
             >
-              {opt.label}
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {opt.label}
+              </span>
+              {renderRowAction && (
+                <span
+                  onMouseDown={(e) => {
+                    // 行の commit を抑止して action 側の onClick だけ走らせる
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ flexShrink: 0, display: "inline-flex", alignItems: "center" }}
+                >
+                  {renderRowAction(opt.value)}
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -203,6 +223,9 @@ const optionStyle: CSSProperties = {
   fontSize: 13,
   color: "#cbd2ee",
   cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
 };
 
 // クエリの各文字が、対象に出現順で含まれていればマッチ。
