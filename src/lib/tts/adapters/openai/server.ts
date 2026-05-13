@@ -1,5 +1,5 @@
 import type { SynthesizeOptions, TtsAdapter } from "../types";
-import { appendSilenceToWav } from "../wav";
+import { appendSilenceToWav } from "../../wav";
 
 export type OpenAiTtsAdapterOptions = {
   name?: string;

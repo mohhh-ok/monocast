@@ -1,5 +1,5 @@
 import type { TtsAdapter } from "../types";
-import { createVoicevoxAdapter } from "./voicevox";
+import { createVoicevoxAdapter } from "../voicevox/server";
 
 export type AivisSpeechAdapterOptions = {
   url: string;

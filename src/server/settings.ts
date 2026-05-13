@@ -18,14 +18,14 @@ import {
   type ProfileMeta,
 } from "@/config";
 import type { ProducePhase } from "@/lib/produce";
-import { createAivisSpeechAdapter } from "@/lib/tts/adapters/aivisspeech";
-import { createElevenLabsAdapter } from "@/lib/tts/adapters/elevenlabs";
-import { createKokoroAdapter } from "@/lib/tts/adapters/kokoro";
-import { createOpenAiTtsAdapter } from "@/lib/tts/adapters/openai";
-import { createSapiAdapter } from "@/lib/tts/adapters/sapi";
-import { createSayAdapter } from "@/lib/tts/adapters/say";
-import { createVoicevoxAdapter } from "@/lib/tts/adapters/voicevox";
-import type { TtsAdapter } from "@/lib/tts/types";
+import { createAivisSpeechAdapter } from "@/lib/tts/adapters/aivisspeech/server";
+import { createElevenLabsAdapter } from "@/lib/tts/adapters/elevenlabs/server";
+import { createKokoroAdapter } from "@/lib/tts/adapters/kokoro/server";
+import { createOpenAiTtsAdapter } from "@/lib/tts/adapters/openai/server";
+import { createSapiAdapter } from "@/lib/tts/adapters/sapi/server";
+import { createSayAdapter } from "@/lib/tts/adapters/say/server";
+import { createVoicevoxAdapter } from "@/lib/tts/adapters/voicevox/server";
+import type { TtsAdapter } from "@/lib/tts/adapters/types";
 import { cancelInFlight, getInFlightSnapshot } from "./programs";
 
 // 進行中フェーズで実際に「使う」設定キー。これらが変わったらキャンセル対象。

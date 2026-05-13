@@ -1,4 +1,4 @@
-import { log } from "../../log";
+import { log } from "../../../log";
 import type { SynthesizeOptions, TtsAdapter } from "../types";
 
 export type VoicevoxAdapterOptions = {

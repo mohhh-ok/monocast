@@ -1,5 +1,5 @@
 import type { SynthesizeOptions, TtsAdapter } from "../types";
-import { appendSilenceToWav, buildWavFromPcm } from "../wav";
+import { appendSilenceToWav, buildWavFromPcm } from "../../wav";
 
 export type ElevenLabsAdapterOptions = {
   name?: string;

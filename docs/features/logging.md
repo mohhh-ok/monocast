@@ -40,10 +40,10 @@ log.error(tag, "失敗", { chain: [...], stack: "..." });
 | ログ | 場所 | extra フィールド |
 | --- | --- | --- |
 | 原稿プロファイル | `produce.ts` | `totalLen` / `paragraphs` / `longestLen` / `newlineCount` |
-| 段落合成開始 | `tts/index.ts` | `index` / `total` / `len` / `head` (先頭40字) |
-| 段落合成失敗 | `tts/index.ts` | `index` / `total` / `len` / `head` (先頭80字) / `elapsedMs` |
-| VOICEVOX `audio_query` 開始/完了 | `voicevox.ts` | `url` / `speaker` / `textLen` / `status` / `elapsedMs` |
-| VOICEVOX `synthesis` 開始/完了 | `voicevox.ts` | `url` / `speaker` / `status` / `elapsedMs` / `bytes` |
+| 段落合成開始 | `tts/server.ts` | `index` / `total` / `len` / `head` (先頭40字) |
+| 段落合成失敗 | `tts/server.ts` | `index` / `total` / `len` / `head` (先頭80字) / `elapsedMs` |
+| VOICEVOX `audio_query` 開始/完了 | `tts/adapters/voicevox/server.ts` | `url` / `speaker` / `textLen` / `status` / `elapsedMs` |
+| VOICEVOX `synthesis` 開始/完了 | `tts/adapters/voicevox/server.ts` | `url` / `speaker` / `status` / `elapsedMs` / `bytes` |
 | produce 失敗 | `produce.ts` | `chain` / `stack` / `elapsedMs` |
 
 ## 追跡例

@@ -2,18 +2,18 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getConfig } from "@/config";
 import { getEnv } from "@/lib/env";
-import { createAivisSpeechAdapter } from "./adapters/aivisspeech";
-import { createElevenLabsAdapter } from "./adapters/elevenlabs";
-import { createKokoroAdapter } from "./adapters/kokoro";
-import { createOpenAiTtsAdapter } from "./adapters/openai";
-import { createSapiAdapter } from "./adapters/sapi";
-import { createSayAdapter } from "./adapters/say";
-import { createVoicevoxAdapter } from "./adapters/voicevox";
+import { createAivisSpeechAdapter } from "./adapters/aivisspeech/server";
+import { createElevenLabsAdapter } from "./adapters/elevenlabs/server";
+import { createKokoroAdapter } from "./adapters/kokoro/server";
+import { createOpenAiTtsAdapter } from "./adapters/openai/server";
+import { createSapiAdapter } from "./adapters/sapi/server";
+import { createSayAdapter } from "./adapters/say/server";
+import { createVoicevoxAdapter } from "./adapters/voicevox/server";
 import { log } from "../log";
-import type { TtsAdapter } from "./types";
+import type { TtsAdapter } from "./adapters/types";
 import { readWavSampleRate } from "./wav";
 
-export type { TtsAdapter, SynthesizeOptions } from "./types";
+export type { TtsAdapter, SynthesizeOptions } from "./adapters/types";
 
 export type AudioSegment = {
   /** ブラウザから参照する URL（/audio/<id>/seg-NNN.wav） */

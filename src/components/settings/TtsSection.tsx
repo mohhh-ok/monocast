@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { TTS_IDS, type Config, type TtsId } from "@/config.shared";
 import { languageLabel, localeMatches } from "@/lib/lang";
+import { TTS_COMMON } from "@/lib/tts/common";
 import { getSampleForLocale } from "@/lib/tts/sample-texts";
 import {
   fetchAivisSpeakersFn,
@@ -298,21 +299,55 @@ export function TtsSection({
     <section style={cardStyle}>
       <h2 style={sectionStyle}>音声合成</h2>
 
-      <Field label="使用するエンジン">
+      <Field
+        label="使用するエンジン"
+        hint={`出力言語 ${languageLabel(cfg.outputLanguageCode)} に対応していないエンジンはグレーアウトされます。`}
+      >
         <div style={{ display: "grid", gap: 6 }}>
-          {TTS_IDS.map((id) => (
-            <label key={id} style={sourceItemStyle}>
-              <input
-                type="radio"
-                name="selectedTts"
-                checked={cfg.selectedTts === id}
-                onChange={() => update("selectedTts", id as TtsId)}
-              />
-              <span style={{ fontSize: 13, color: "#cbd2ee" }}>
-                {TTS_LABELS[id]}
-              </span>
-            </label>
-          ))}
+          {TTS_IDS.map((id) => {
+            const fetched =
+              id === "say"
+                ? sayVoices.map((v) => v.locale)
+                : id === "sapi"
+                  ? sapiVoices.map((v) => v.locale)
+                  : id === "kokoro"
+                    ? kokoroVoices.map((v) => v.locale)
+                    : undefined;
+            const supported = TTS_COMMON[id].isLanguageSupported(
+              cfg.outputLanguageCode,
+              fetched,
+            );
+            // 現在選択中のエンジンは「言語非対応」と判定されても操作可能にしておく
+            // (ユーザーが言語を切り替えた直後にロック状態にならないように)
+            const isCurrent = cfg.selectedTts === id;
+            const disabled = !supported && !isCurrent;
+            return (
+              <label
+                key={id}
+                style={{
+                  ...sourceItemStyle,
+                  opacity: disabled ? 0.4 : 1,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="selectedTts"
+                  checked={isCurrent}
+                  disabled={disabled}
+                  onChange={() => update("selectedTts", id as TtsId)}
+                />
+                <span style={{ fontSize: 13, color: "#cbd2ee" }}>
+                  {TTS_LABELS[id]}
+                </span>
+                {!supported && (
+                  <span style={{ fontSize: 11, color: "#8a93b8" }}>
+                    ({languageLabel(cfg.outputLanguageCode)} 非対応)
+                  </span>
+                )}
+              </label>
+            );
+          })}
         </div>
       </Field>
 

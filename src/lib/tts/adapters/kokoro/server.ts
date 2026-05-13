@@ -1,6 +1,6 @@
-import { log } from "../../log";
+import { log } from "../../../log";
 import type { SynthesizeOptions, TtsAdapter } from "../types";
-import { appendSilenceToWav, readWavSampleRate } from "../wav";
+import { appendSilenceToWav, readWavSampleRate } from "../../wav";
 
 /**
  * Kokoro-FastAPI (https://github.com/remsky/Kokoro-FastAPI) を HTTP で叩く adapter。

@@ -7,7 +7,7 @@ import { log } from "./log";
 import { fetchNews } from "./news";
 import { addProgram, removeProgram, updateProgram, type Program } from "./queue";
 import { generateProgramScript } from "./script";
-import { synthesizeToSegments } from "./tts";
+import { synthesizeToSegments } from "./tts/server";
 
 const NEWS_ITEMS_PER_PROGRAM = 10;
 
