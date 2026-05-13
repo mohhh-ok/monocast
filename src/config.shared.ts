@@ -53,6 +53,16 @@ export const ConfigSchema = z.object({
   kokoroVoice: z.string().min(1).default("af_heart"),
   /** 段落ごとの音声合成を何並列で走らせるか (1 で逐次)。 */
   ttsConcurrency: z.coerce.number().int().min(1).max(8).default(1),
+  /**
+   * 番組原稿を生成する出力言語の BCP 47 風コード。
+   * voice の locale 絞り込みと、LLM プロンプトに添える言語指示の両方で使う。
+   */
+  outputLanguageCode: z.string().min(2).max(16).default("ja"),
+  /**
+   * 言語に関する追加のニュアンス指示（例: 固有名詞は英語読みのまま、フォーマルに、関西弁で 等）。
+   * 空文字なら添えない。LLM プロンプトにそのまま渡る。
+   */
+  outputLanguageNotes: z.string().max(500).default(""),
   /** 取得対象の RSS フィード URL 一覧。[] なら取得しない（次の番組は作られない）。 */
   rssUrls: z
     .array(z.string().url())

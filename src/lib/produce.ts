@@ -99,7 +99,10 @@ export async function produceProgram(
     onPhase?.("script");
     const tScript = Date.now();
     log.info(tag, "台本生成中...");
-    const script = await generateProgramScript(news, adapter);
+    const script = await generateProgramScript(news, adapter, {
+      languageCode: cfg.outputLanguageCode,
+      languageNotes: cfg.outputLanguageNotes,
+    });
     log.info(
       tag,
       `台本完了 「${script.title}」${script.body.length}字 (${Date.now() - tScript}ms)`,

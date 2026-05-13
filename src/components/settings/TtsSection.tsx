@@ -1,4 +1,5 @@
 import { TTS_IDS, type Config, type TtsId } from "@/config.shared";
+import { languageLabel, localeMatches } from "@/lib/lang";
 import {
   fetchAivisSpeakersFn,
   fetchKokoroVoicesFn,
@@ -24,6 +25,28 @@ import { TtsSetup } from "./TtsSetup";
 
 const toStringOptions = (xs: readonly string[]) =>
   xs.map((v) => ({ value: v, label: v }));
+
+/**
+ * 出力言語コードで voice を絞り込む。0 件になったら全件にフォールバック。
+ * 何件絞ったかを呼び出し側で表示するため、結果には件数と適用フラグも返す。
+ */
+function applyLanguageFilter<T extends { locale: string }>(
+  voices: T[],
+  code: string,
+): { list: T[]; applied: boolean; hidden: number } {
+  if (!code || voices.length === 0) {
+    return { list: voices, applied: false, hidden: 0 };
+  }
+  const matched = voices.filter((v) => localeMatches(v.locale, code));
+  if (matched.length === 0) {
+    return { list: voices, applied: false, hidden: 0 };
+  }
+  return {
+    list: matched,
+    applied: matched.length !== voices.length,
+    hidden: voices.length - matched.length,
+  };
+}
 
 type Props = {
   cfg: Config;
@@ -277,90 +300,100 @@ export function TtsSection({
             </div>
             <EngineStatus id="kokoro" url={cfg.kokoroUrl} />
           </Field>
-          <Field
-            label="Voice"
-            hint={
+          {(() => {
+            const f = applyLanguageFilter(kokoroVoices, cfg.outputLanguageCode);
+            const hintBase =
               kokoroVoices.length === 0
                 ? "Kokoro-FastAPI に接続できない場合は voice 名を直接入力 (jf_/jm_=ja, af_/am_=en-US, bf_/bm_=en-GB, zf_/zm_=zh)"
-                : `${kokoroVoices.length} voice 取得済み (ja → en → 他言語の順で表示)`
-            }
-          >
-            {kokoroVoices.length > 0 ? (
-              <SearchableSelect
-                value={cfg.kokoroVoice}
-                options={[
-                  ...(kokoroVoices.some((v) => v.name === cfg.kokoroVoice)
-                    ? []
-                    : [
-                        {
-                          value: cfg.kokoroVoice,
-                          label: `${cfg.kokoroVoice} (未取得)`,
-                        },
-                      ]),
-                  ...kokoroVoices.map((v) => ({
-                    value: v.name,
-                    label: `${v.name} (${v.locale})`,
-                  })),
-                ]}
-                onChange={(v) => update("kokoroVoice", v)}
-                inputStyle={inputStyle}
-              />
-            ) : (
-              <input
-                type="text"
-                value={cfg.kokoroVoice}
-                onChange={(e) => update("kokoroVoice", e.target.value)}
-                placeholder="af_heart"
-                style={inputStyle}
-              />
-            )}
-          </Field>
+                : `${kokoroVoices.length} voice 取得済み (ja → en → 他言語の順で表示)`;
+            const hint = f.applied
+              ? `${hintBase} / 出力言語 ${languageLabel(cfg.outputLanguageCode)} で ${f.list.length} 件に絞り込み (${f.hidden} 件を非表示)`
+              : hintBase;
+            return (
+              <Field label="Voice" hint={hint}>
+                {kokoroVoices.length > 0 ? (
+                  <SearchableSelect
+                    value={cfg.kokoroVoice}
+                    options={[
+                      ...(f.list.some((v) => v.name === cfg.kokoroVoice)
+                        ? []
+                        : [
+                            {
+                              value: cfg.kokoroVoice,
+                              label: `${cfg.kokoroVoice} (言語フィルタ外/未取得)`,
+                            },
+                          ]),
+                      ...f.list.map((v) => ({
+                        value: v.name,
+                        label: `${v.name} (${v.locale})`,
+                      })),
+                    ]}
+                    onChange={(v) => update("kokoroVoice", v)}
+                    inputStyle={inputStyle}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={cfg.kokoroVoice}
+                    onChange={(e) => update("kokoroVoice", e.target.value)}
+                    placeholder="af_heart"
+                    style={inputStyle}
+                  />
+                )}
+              </Field>
+            );
+          })()}
         </>
       )}
 
       {cfg.selectedTts === "say" && (
         <>
-          <Field
-            label="Voice"
-            hint={
+          {(() => {
+            const f = applyLanguageFilter(sayVoices, cfg.outputLanguageCode);
+            const hintBase =
               sayVoices.length === 0
                 ? "macOS 以外、または say コマンドが利用できない可能性があります"
-                : "ja_JP の voice (Kyoko / Otoya 等) を選ぶと日本語が自然に発話されます"
-            }
-          >
-            <div style={{ display: "flex", gap: 8 }}>
-              {sayVoices.length > 0 ? (
-                <SearchableSelect
-                  value={cfg.sayVoice}
-                  options={[
-                    { value: "", label: "(システム既定)" },
-                    ...sayVoices.map((v) => ({
-                      value: v.name,
-                      label: `${v.name} (${v.locale})`,
-                    })),
-                  ]}
-                  onChange={(v) => update("sayVoice", v)}
-                  style={{ flex: 1 }}
-                  inputStyle={inputStyle}
-                />
-              ) : (
-                <input
-                  type="text"
-                  value={cfg.sayVoice}
-                  onChange={(e) => update("sayVoice", e.target.value)}
-                  placeholder="Kyoko"
-                  style={inputStyle}
-                />
-              )}
-              <button
-                type="button"
-                onClick={refreshSayVoices}
-                style={btnStyle()}
-              >
-                再取得
-              </button>
-            </div>
-          </Field>
+                : "ja_JP の voice (Kyoko / Otoya 等) を選ぶと日本語が自然に発話されます";
+            const hint = f.applied
+              ? `${hintBase} / 出力言語 ${languageLabel(cfg.outputLanguageCode)} で ${f.list.length} 件に絞り込み (${f.hidden} 件を非表示)`
+              : hintBase;
+            return (
+              <Field label="Voice" hint={hint}>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {sayVoices.length > 0 ? (
+                    <SearchableSelect
+                      value={cfg.sayVoice}
+                      options={[
+                        { value: "", label: "(システム既定)" },
+                        ...f.list.map((v) => ({
+                          value: v.name,
+                          label: `${v.name} (${v.locale})`,
+                        })),
+                      ]}
+                      onChange={(v) => update("sayVoice", v)}
+                      style={{ flex: 1 }}
+                      inputStyle={inputStyle}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={cfg.sayVoice}
+                      onChange={(e) => update("sayVoice", e.target.value)}
+                      placeholder="Kyoko"
+                      style={inputStyle}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={refreshSayVoices}
+                    style={btnStyle()}
+                  >
+                    再取得
+                  </button>
+                </div>
+              </Field>
+            );
+          })()}
 
           <Field
             label="発話速度 (words/min)"
@@ -380,47 +413,52 @@ export function TtsSection({
 
       {cfg.selectedTts === "sapi" && (
         <>
-          <Field
-            label="Voice"
-            hint={
+          {(() => {
+            const f = applyLanguageFilter(sapiVoices, cfg.outputLanguageCode);
+            const hintBase =
               sapiVoices.length === 0
                 ? "Windows 以外、または PowerShell が利用できない可能性があります"
-                : "ja-JP の voice (Haruka / Ayumi / Ichiro 等) を選ぶと日本語が自然に発話されます"
-            }
-          >
-            <div style={{ display: "flex", gap: 8 }}>
-              {sapiVoices.length > 0 ? (
-                <SearchableSelect
-                  value={cfg.sapiVoice}
-                  options={[
-                    { value: "", label: "(システム既定)" },
-                    ...sapiVoices.map((v) => ({
-                      value: v.name,
-                      label: `${v.name} (${v.locale})`,
-                    })),
-                  ]}
-                  onChange={(v) => update("sapiVoice", v)}
-                  style={{ flex: 1 }}
-                  inputStyle={inputStyle}
-                />
-              ) : (
-                <input
-                  type="text"
-                  value={cfg.sapiVoice}
-                  onChange={(e) => update("sapiVoice", e.target.value)}
-                  placeholder="Microsoft Haruka Desktop"
-                  style={inputStyle}
-                />
-              )}
-              <button
-                type="button"
-                onClick={refreshSapiVoices}
-                style={btnStyle()}
-              >
-                再取得
-              </button>
-            </div>
-          </Field>
+                : "ja-JP の voice (Haruka / Ayumi / Ichiro 等) を選ぶと日本語が自然に発話されます";
+            const hint = f.applied
+              ? `${hintBase} / 出力言語 ${languageLabel(cfg.outputLanguageCode)} で ${f.list.length} 件に絞り込み (${f.hidden} 件を非表示)`
+              : hintBase;
+            return (
+              <Field label="Voice" hint={hint}>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {sapiVoices.length > 0 ? (
+                    <SearchableSelect
+                      value={cfg.sapiVoice}
+                      options={[
+                        { value: "", label: "(システム既定)" },
+                        ...f.list.map((v) => ({
+                          value: v.name,
+                          label: `${v.name} (${v.locale})`,
+                        })),
+                      ]}
+                      onChange={(v) => update("sapiVoice", v)}
+                      style={{ flex: 1 }}
+                      inputStyle={inputStyle}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={cfg.sapiVoice}
+                      onChange={(e) => update("sapiVoice", e.target.value)}
+                      placeholder="Microsoft Haruka Desktop"
+                      style={inputStyle}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={refreshSapiVoices}
+                    style={btnStyle()}
+                  >
+                    再取得
+                  </button>
+                </div>
+              </Field>
+            );
+          })()}
 
           <Field
             label="発話速度 (-10..10)"

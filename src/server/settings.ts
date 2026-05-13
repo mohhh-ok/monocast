@@ -31,6 +31,9 @@ const LLM_KEYS: ReadonlyArray<keyof Config> = [
   "geminiModel",
   "ollamaUrl",
   "ollamaModel",
+  // 番組原稿の言語/ニュアンスは LLM プロンプトに直接影響する。
+  "outputLanguageCode",
+  "outputLanguageNotes",
 ];
 const TTS_KEYS: ReadonlyArray<keyof Config> = [
   "selectedTts",

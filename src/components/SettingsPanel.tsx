@@ -201,6 +201,8 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
       <ProfileSection
         profileName={profileName}
         onRename={() => void renameCurrentProfile()}
+        cfg={cfg}
+        update={update}
       />
 
       <NewsSourcesSection

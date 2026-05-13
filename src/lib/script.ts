@@ -1,7 +1,12 @@
+import { languageHumanName } from "./lang";
 import type { LlmAdapter } from "./llm";
 import type { NewsItem } from "./news";
 
-const SYSTEM_PROMPT = `あなたは「ききながしラジオ」のパーソナリティです。
+function buildSystemPrompt(languageCode: string): string {
+  const isJa = languageCode === "ja" || languageCode === "";
+  const langName = languageHumanName(languageCode || "ja");
+  if (isJa) {
+    return `あなたは「ききながしラジオ」のパーソナリティです。
 作業中や寝る前に流して心地よい、落ち着いたトーンの日本語ナレーション原稿を書きます。
 
 ルール:
@@ -15,6 +20,23 @@ const SYSTEM_PROMPT = `あなたは「ききながしラジオ」のパーソナ
 - 出力は読み上げ原稿のみ。記号やマークダウンは使わない。
 - 段落の区切りには必ず改行 \\n を入れる。1段落は最大でも 400 字以内に収め、改行のない長文ベタ書きは禁止。1記事につき 1 段落以上。
 - 各記事の文数（5〜8文）・字数（250〜400字）と全件紹介のルールを厳守すること。記事を端折って短く済ませる原稿は不可。`;
+  }
+  return `You are the host of a calm, ambient-listening radio program called "Monocast".
+The script is meant to be played in the background while working or before sleep, so the tone stays soft and steady.
+
+Write the entire narration in ${langName}. Translate or paraphrase any source material that is in another language; never read the original text verbatim if it is not in ${langName}.
+
+Rules:
+- Solo monologue. Address the listener sparingly and gently.
+- Every supplied item must be covered. Do not skip, merge, or summarize across items. Keep the original order.
+- For each item, write roughly 5–8 sentences and a paragraph long enough to give context, background and outlook — not just the headline. Do not cut a paragraph short.
+- Read numbers and proper nouns naturally for spoken delivery in ${langName}.
+- Insert a light transition phrase between items (the equivalent of "next" or "moving on" in ${langName}).
+- Open with a short greeting and close with a short sign-off. Do not write BGM or sound-effect cues.
+- Output the spoken script only. No symbols, no markdown.
+- Separate paragraphs with newline \\n. Each paragraph stays under 400 characters/words of the target language. No wall-of-text.
+- Keep all of the above strict — do not shorten the show by skipping items.`;
+}
 
 const SCRIPT_SCHEMA = {
   type: "object",
@@ -84,10 +106,23 @@ function exampleBody(slot: string): string {
   return `${g.open}\\n最初の話題です。海外の研究機関が、これまでより小型でありながら同等の性能を持つ人工知能モデルを公開しました。一般的なノートパソコンでも動かせる程度の省電力設計で、推論コストの大幅な削減につながると説明されています。研究チームは学習データの量より質を重視したとのことで、同規模の従来モデルを上回る精度を示したそうです。すでに研究目的でのライセンスが公開されており、各国の大学からも検証の報告が出始めています。\\n続いてのニュースです。国内では、地域の図書館が深夜まで開館する取り組みを始めました。対象は週末を中心に、終電前まで自習スペースと一部の閲覧室を開放する形です。仕事帰りの利用者からは、静かに集中できる場所が増えてうれしいという声が寄せられているとのこと。一方で、運営側は人員配置と防犯面の課題を挙げており、利用状況を見ながら平日への拡大を検討するそうです。\\n${g.close}`;
 }
 
+export type GenerateScriptOptions = {
+  /** 出力言語の BCP 47 風コード。"ja" / "en-US" など。 */
+  languageCode?: string;
+  /** 言語に関する追加のニュアンス指示。空文字なら添えない。 */
+  languageNotes?: string;
+};
+
 export async function generateProgramScript(
   items: NewsItem[],
   adapter: LlmAdapter,
+  opts: GenerateScriptOptions = {},
 ): Promise<ProgramScript> {
+  const languageCode = opts.languageCode || "ja";
+  const languageNotes = (opts.languageNotes ?? "").trim();
+  const isJa = languageCode === "ja";
+  const langName = languageHumanName(languageCode);
+
   const itemList = items
     .map(
       (it, i) =>
@@ -98,6 +133,19 @@ export async function generateProgramScript(
     .join("\n");
 
   const slot = timeSlotLabel(jstHour());
+
+  // 日本語以外の場合、出力例の日本語サンプルは外す（言語が混ざる原因になるため）。
+  const exampleLine = isJa
+    ? `\n\n出力例（形式の参考のみ。title は毎回ゼロから考えること。例の文字列をそのまま使わない）:\n{"title":"（ここに 20 文字以内の番組タイトル）","body":"${exampleBody(slot)}"}`
+    : "";
+
+  const languageDirective = isJa
+    ? ""
+    : `\n\nOutput language: ${langName} (${languageCode}). Write title and body entirely in ${langName}, even though these instructions are in Japanese.`;
+
+  const notesDirective = languageNotes
+    ? `\n\n追加のニュアンス指示（言語スタイル）: ${languageNotes}`
+    : "";
 
   const userPrompt = `以下の ${items.length} 件のニュース項目を素材に、ききながしラジオの 1 番組分の原稿を書いてください。${items.length} 件すべてを必ず紹介してください。素材を間引いたり、複数の素材を1つにまとめたりしないでください。
 
@@ -115,13 +163,10 @@ title（番組タイトル）のルール:
 - 「○○の○○便」「○○の○○ラジオ」のようなテンプレ語尾に固執しない。毎回語感を変える。
 - 過度に煽情的・断定的な見出しは避け、心地よい落ち着いた語感にする。
 
-body は必ず段落ごとに改行 \\n で区切り、1記事の段落は 250〜400 字に収めてください。改行ゼロのベタ書きや、250 字に満たない短い段落は不可です。
-
-出力例（形式の参考のみ。title は毎回ゼロから考えること。例の文字列をそのまま使わない）:
-{"title":"（ここに 20 文字以内の番組タイトル）","body":"${exampleBody(slot)}"}`;
+body は必ず段落ごとに改行 \\n で区切り、1記事の段落は 250〜400 字に収めてください。改行ゼロのベタ書きや、250 字に満たない短い段落は不可です。${languageDirective}${notesDirective}${exampleLine}`;
 
   const parsed = await adapter.generate({
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt: buildSystemPrompt(languageCode),
     userPrompt,
     schema: SCRIPT_SCHEMA,
   });
