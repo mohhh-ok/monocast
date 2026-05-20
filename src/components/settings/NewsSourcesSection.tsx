@@ -1,10 +1,13 @@
 import { useState } from "react";
+import type { DedupMode } from "@/config.shared";
 import { probeRssUrlsFn, type RssFeedProbe } from "@/server/settings";
 import { btnStyle, cardStyle, inputStyle, sectionStyle } from "./styles";
 
 type Props = {
   rssUrls: string[];
   onChange: (next: string[]) => void;
+  dedupMode: DedupMode;
+  onDedupModeChange: (next: DedupMode) => void;
 };
 
 function parseUrls(text: string): string[] {
@@ -23,7 +26,12 @@ function isValidUrl(s: string): boolean {
   }
 }
 
-export function NewsSourcesSection({ rssUrls, onChange }: Props) {
+export function NewsSourcesSection({
+  rssUrls,
+  onChange,
+  dedupMode,
+  onDedupModeChange,
+}: Props) {
   const [text, setText] = useState<string>(rssUrls.join("\n"));
   const [probes, setProbes] = useState<RssFeedProbe[] | null>(null);
   const [probing, setProbing] = useState(false);
@@ -117,6 +125,72 @@ export function NewsSourcesSection({ rssUrls, onChange }: Props) {
           URL が 0 件です。番組生成は空結果となり、次の番組は作られません。
         </div>
       )}
+
+      <div style={{ marginTop: 18 }}>
+        <div
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.2em",
+            color: "#8a93b8",
+            marginBottom: 8,
+            textTransform: "uppercase",
+          }}
+        >
+          重複制御
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "flex-start",
+              fontSize: 13,
+              color: "#cbd2ee",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="radio"
+              name="dedupMode"
+              value="strict"
+              checked={dedupMode === "strict"}
+              onChange={() => onDedupModeChange("strict")}
+              style={{ marginTop: 3 }}
+            />
+            <span>
+              <span>厳格（過去14日の既出URLを除外）</span>
+              <div style={{ fontSize: 12, color: "#8a93b8", marginTop: 2 }}>
+                新規が尽きた回は番組生成を中止します。
+              </div>
+            </span>
+          </label>
+          <label
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "flex-start",
+              fontSize: 13,
+              color: "#cbd2ee",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="radio"
+              name="dedupMode"
+              value="soft"
+              checked={dedupMode === "soft"}
+              onChange={() => onDedupModeChange("soft")}
+              style={{ marginTop: 3 }}
+            />
+            <span>
+              <span>緩め（重複は許容するができるだけ避ける）</span>
+              <div style={{ fontSize: 12, color: "#8a93b8", marginTop: 2 }}>
+                ランダム50件抽出 → 新着10件 → ランク重み抽選。既出は採用確率を下げます。
+              </div>
+            </span>
+          </label>
+        </div>
+      </div>
 
       {probes && (
         <div style={{ marginTop: 14 }}>

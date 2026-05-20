@@ -4,17 +4,26 @@ import { atomicWriteJson } from "./lib/atomic-json";
 import { createSerialQueue } from "./lib/serial";
 import {
   ConfigSchema,
+  DEDUP_MODES,
   DEFAULT_CONFIG,
   LLM_IDS,
   RANDOM_PROFILE_ID,
   TTS_IDS,
   type Config,
+  type DedupMode,
   type LlmId,
   type TtsId,
 } from "./config.shared";
 
-export { ConfigSchema, DEFAULT_CONFIG, LLM_IDS, RANDOM_PROFILE_ID, TTS_IDS };
-export type { Config, LlmId, TtsId };
+export {
+  ConfigSchema,
+  DEDUP_MODES,
+  DEFAULT_CONFIG,
+  LLM_IDS,
+  RANDOM_PROFILE_ID,
+  TTS_IDS,
+};
+export type { Config, DedupMode, LlmId, TtsId };
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const ROOT_FILE = path.join(DATA_DIR, "config.json");

@@ -208,6 +208,8 @@ export function SettingsPanel({ onClose, onProfilesChange }: Props) {
       <NewsSourcesSection
         rssUrls={cfg.rssUrls}
         onChange={(next) => update("rssUrls", next)}
+        dedupMode={cfg.dedupMode}
+        onDedupModeChange={(next) => update("dedupMode", next)}
       />
 
       <LlmSection cfg={cfg} update={update} />

@@ -78,6 +78,7 @@ export async function produceProgram(
     const { items: news, candidateCount, seenCount } = await fetchNews(
       NEWS_ITEMS_PER_PROGRAM,
       cfg.rssUrls,
+      { dedupMode: cfg.dedupMode },
     );
     log.info(
       tag,

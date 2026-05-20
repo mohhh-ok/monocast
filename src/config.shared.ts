@@ -19,6 +19,9 @@ export const TTS_IDS = [
 ] as const;
 export type TtsId = (typeof TTS_IDS)[number];
 
+export const DEDUP_MODES = ["strict", "soft"] as const;
+export type DedupMode = (typeof DEDUP_MODES)[number];
+
 export const ConfigSchema = z.object({
   /** 番組生成に使う LLM。 */
   selectedLlm: z.enum(LLM_IDS).default("anthropic"),
@@ -67,6 +70,12 @@ export const ConfigSchema = z.object({
   rssUrls: z
     .array(z.string().url())
     .default(() => [...DEFAULT_RSS_URLS]),
+  /**
+   * 過去14日に番組化済みの URL の扱い:
+   * - "strict": 候補から完全に除外（既定。新規が尽きれば番組生成は中止）。
+   * - "soft": 除外せず、選定時の重みを下げる（ランダム50 → 日付降順10 → ランク重み抽選）。
+   */
+  dedupMode: z.enum(DEDUP_MODES).default("strict"),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
