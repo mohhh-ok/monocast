@@ -100,6 +100,19 @@ export function NowPlayingCard({
               onPlay={onPlay}
               onPause={onPause}
               onEnded={onEnded}
+              onError={(e) => {
+                const el = e.currentTarget;
+                const err = el.error;
+                console.error("[audio] error", {
+                  programId: current.id,
+                  segIndex,
+                  src: el.currentSrc || el.src,
+                  networkState: el.networkState,
+                  readyState: el.readyState,
+                  code: err?.code,
+                  message: err?.message,
+                });
+              }}
               style={{ width: "100%" }}
             />
           ) : (
