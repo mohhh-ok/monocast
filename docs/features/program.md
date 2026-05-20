@@ -6,7 +6,7 @@ monocast の番組生成・キュー仕様。
 
 - 1 番組 = 10 件程度のニュースをまとめた読み上げ（1 記事あたり 5〜8 文・250〜400 字。尺は件数に比例して決まる）
 - 番組メタは `data/queue.json` に永続化
-- 音声は段落単位の WAV を `public/audio/<id>/seg-NNN.wav` に置き、ffmpeg で結合せずブラウザ側で順番に再生する。番組の再生終了時に番組ディレクトリごと削除される
+- 音声は段落単位の WAV を `data/audio/<id>/seg-NNN.wav` に置き、ffmpeg で結合せずブラウザ側で順番に再生する。配信は `/api/audio/<id>/seg-NNN.wav` の server route が `fs.readFile` で直接返す（TanStack Start dev の `public/` indexing ラグで書いた直後のファイルが 404 になるのを避けるため）。番組の再生終了時に番組ディレクトリごと削除される
 - 段落末には 0.9 秒の無音を、最終段落末（＝番組末）には 3 秒の無音を WAV に直接追記する。番組間のクッションはこの 3 秒で確保される
 - 段落 0 が合成完了した時点でキューに公開され（`audioSegments=[]` + `expectedSegmentCount`）、残りの段落は完成順に `updateProgram` で追記される。クライアントは公開済み段落だけを順次再生する
 - 1 リクエストにつき生成は 1 件ずつ (二重生成防止)

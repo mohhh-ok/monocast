@@ -124,7 +124,7 @@ curl -s http://localhost:8880/v1/audio/voices | jq
 | `data/queue.json` | 番組キューのメタデータ |
 | `data/rss-cache.sqlite` | RSS の 30 分キャッシュ |
 | `data/seen.sqlite` | 過去 14 日に読んだ URL |
-| `public/audio/<id>/seg-NNN.wav` | 各番組の段落音声（再生終了でディレクトリごと削除） |
+| `data/audio/<id>/seg-NNN.wav` | 各番組の段落音声（`/api/audio/<id>/seg-NNN.wav` で配信、再生終了でディレクトリごと削除） |
 | `.logs/app.jsonl` | 詳細ログ（起動ごとにクリア） |
 
 ## 仕様ドキュメント

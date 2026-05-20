@@ -64,7 +64,7 @@ export async function removeProgram(id: string): Promise<void> {
     s.programs = s.programs.filter((x) => x.id !== id);
     await save(s);
   });
-  const dir = path.join(process.cwd(), "public", "audio", id);
+  const dir = path.join(process.cwd(), "data", "audio", id);
   await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
 }
 

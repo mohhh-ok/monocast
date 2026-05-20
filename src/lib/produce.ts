@@ -112,9 +112,9 @@ export async function produceProgram(
 
     checkAborted(signal);
     onPhase?.("tts");
-    const outDir = path.join(process.cwd(), "public", "audio", id);
+    const outDir = path.join(process.cwd(), "data", "audio", id);
     const tTts = Date.now();
-    log.info(tag, `音声合成開始 -> audio/${id}/`);
+    log.info(tag, `音声合成開始 -> data/audio/${id}/`);
 
     const program: Program = {
       id,
@@ -135,7 +135,7 @@ export async function produceProgram(
     const { segments, totalDurationSec } = await synthesizeToSegments(
       script.body,
       outDir,
-      `/audio/${id}`,
+      `/api/audio/${id}`,
       {
         logTag: tag,
         signal,
