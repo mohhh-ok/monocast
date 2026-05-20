@@ -72,10 +72,10 @@ export const ConfigSchema = z.object({
     .default(() => [...DEFAULT_RSS_URLS]),
   /**
    * 過去14日に番組化済みの URL の扱い:
-   * - "strict": 候補から完全に除外（既定。新規が尽きれば番組生成は中止）。
-   * - "soft": 除外せず、選定時の重みを下げる（ランダム50 → 日付降順10 → ランク重み抽選）。
+   * - "soft": 除外せず、選定時の重みを下げる（既定。ランダム50 → 日付降順10 → ランク重み抽選）。
+   * - "strict": 候補から完全に除外（新規が尽きれば番組生成は中止）。
    */
-  dedupMode: z.enum(DEDUP_MODES).default("strict"),
+  dedupMode: z.enum(DEDUP_MODES).default("soft"),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
