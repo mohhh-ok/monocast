@@ -9,7 +9,7 @@ monocast のログ機構の仕様。
 | コンソール | `info` / `warn` / `error` のみ、人間可読の 1 行テキスト |
 | `.logs/app.jsonl` | `debug` 含めた全レベル、JSON Lines 形式（構造化フィールド付き） |
 
-ファイルは `npm run dev` / `npm run start` の **起動時に毎回クリア**される（`scripts/reset-log.mjs` を `predev` / `prestart` で実行）。`.logs/` は git 管理外。
+ファイルは `pnpm dev` / `pnpm start` の **起動時に毎回クリア**される（`scripts/reset-log.mjs` を `predev` / `prestart` で実行）。`.logs/` は git 管理外。
 
 ## レベル方針
 

@@ -11,10 +11,10 @@ RSS (NHK / はてブ / グローバルテック など) → LLM で台本 → TT
 ## Quick Start
 
 ```bash
-npm install
+pnpm install
 cp .env.local.example .env.local           # 使うクラウド API のキーだけ入れる
 docker compose --profile voicevox up -d    # TTS エンジンを起動（後述）
-npm run dev                                # http://localhost:3000
+pnpm dev                                   # http://localhost:3000
 ```
 
 ブラウザを開くと最初の番組を自動生成して再生し始める。キューが 2 本未満になると裏で補充される。プロバイダ・モデル・話者などはトップ画面の PROFILE バーの「編集」から切り替えられる（プロファイル単位で保存）。出力言語と任意のニュアンス指示（例: 固有名詞は英語読みのまま）もこのダイアログから設定でき、選んだ言語に応じて TTS の voice 一覧が自動で絞り込まれる。PROFILE で「🎲 ランダム」を選ぶと、番組生成のたびに既存プロファイルから 1 つランダムに使われる（LLM・TTS・RSS は 1 本の番組内で混ざらない）。
