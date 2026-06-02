@@ -8,7 +8,7 @@
   },
   "scripts": {
     "predev": "node scripts/reset-log.mjs",
-    "dev": "vite dev --port 3000",
+    "dev": "vite dev",
     "build": "vite build",
     "prestart": "node scripts/reset-log.mjs",
     "start": "node .output/server/index.mjs"
