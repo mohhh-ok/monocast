@@ -70,13 +70,20 @@ pnpm play
 
 いずれも JSON Schema で `{title, body}` を構造化出力させているのでフォーマット崩れは起きません。
 
-Ollama を使う場合は別途インストールしてモデルを pull します:
+Ollama を使う場合は同梱の `docker-compose.yml` で起動できます（インストール不要）:
+
+```bash
+docker compose --profile ollama up -d
+docker compose exec ollama ollama pull qwen2.5:3b-instruct   # 既定（軽量・日本語OK）
+# 余裕があれば qwen2.5:7b-instruct / qwen2.5:14b-instruct なども
+```
+
+macOS の Docker は GPU を使えず CPU 実行になるため、速度が欲しい場合はホスト直実行も選べます:
 
 ```bash
 brew install ollama
 ollama serve &
-ollama pull qwen2.5:3b-instruct          # 既定（軽量・日本語OK）
-# 余裕があれば qwen2.5:7b-instruct / qwen2.5:14b-instruct なども
+ollama pull qwen2.5:3b-instruct
 ```
 
 設定画面から `LLM = Ollama` に切替・モデル名を変更してください。

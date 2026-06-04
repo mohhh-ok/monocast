@@ -20,3 +20,19 @@ services:
     ports:
       - "8880:8880"
     restart: unless-stopped
+
+  # Ollama (ローカル LLM)。モデルは初回に pull が必要:
+  #   docker compose exec ollama ollama pull qwen2.5:3b-instruct
+  # 注意: macOS の Docker は GPU を使えないため CPU 実行になる。
+  # Mac で速度が欲しい場合は brew install ollama でホスト直実行を推奨。
+  ollama:
+    image: ollama/ollama
+    profiles: [ollama]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama:
