@@ -11,7 +11,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "prestart": "node scripts/reset-log.mjs",
-    "start": "node .output/server/index.mjs",
+    "start": "srvx serve --prod --entry=dist/server/server.js --static=../client",
     "play": "vite-node scripts/play.ts",
     "test": "vitest run"
   },
@@ -25,6 +25,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "rss-parser": "^3.13.0",
+    "srvx": "^0.11.16",
     "zod": "^4.4.3"
   },
   "devDependencies": {
