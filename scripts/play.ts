@@ -125,9 +125,24 @@ function playFile(file: string): Promise<void> {
   });
 }
 
+// ANSI カラー。TTY でないとき（リダイレクト等）は制御コードを混ぜない。
+const useColor = process.stdout.isTTY;
+const paint = (code: string, text: string): string =>
+  useColor ? `\x1b[${code}m${text}\x1b[0m` : text;
+const c = {
+  title: (t: string) => paint("1;36", t), // 太字シアン
+  source: (t: string) => paint("33", t), // 黄
+  snippet: (t: string) => paint("2", t), // 薄字
+  url: (t: string) => paint("4;34", t), // 下線つき青
+};
+
 async function playProgram(p: Program): Promise<void> {
-  console.log(`\n♪ ${p.title}`);
-  for (const s of p.sources) console.log(`   ・[${s.source}] ${s.title}`);
+  console.log(`\n♪ ${c.title(p.title)}`);
+  for (const s of p.sources) {
+    console.log(`   ・${c.source(`[${s.source}]`)} ${s.title}`);
+    if (s.contentSnippet) console.log(`     ${c.snippet(s.contentSnippet)}`);
+    console.log(`     ${c.url(s.link)}`);
+  }
   skipRequested = false;
   for (let i = 0; i < p.expectedSegmentCount; i++) {
     if (stopped || skipRequested) break;

@@ -58,7 +58,7 @@ const SCRIPT_SCHEMA = {
 export type ProgramScript = {
   title: string;
   body: string;
-  sources: { title: string; link: string; source: string }[];
+  sources: { title: string; link: string; source: string; contentSnippet?: string }[];
 };
 
 function jstHour(d = new Date()): number {
@@ -200,6 +200,7 @@ body は必ず段落ごとに改行 \\n で区切り、1記事の段落は 250�
       title: it.title,
       link: it.link,
       source: it.source,
+      contentSnippet: it.contentSnippet,
     })),
   };
 }

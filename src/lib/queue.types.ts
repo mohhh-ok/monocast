@@ -13,6 +13,6 @@ export type Program = {
   expectedSegmentCount: number;
   durationSec: number;
   createdAt: string;
-  sources: { title: string; link: string; source: string }[];
+  sources: { title: string; link: string; source: string; contentSnippet?: string }[];
   llm: { id: string; label: string; model: string };
 };
