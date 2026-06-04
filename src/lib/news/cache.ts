@@ -1,13 +1,11 @@
-import path from "node:path";
 import { z } from "zod";
+import { dataPath } from "../data-dir";
 import { openSqliteOnce } from "../sqlite";
 import { type NewsItem, NewsItemSchema } from "./adapters/types";
 
-const DB_FILE = path.join(process.cwd(), "data", "rss-cache.sqlite");
-
 const PayloadSchema = z.array(NewsItemSchema);
 
-const getDb = openSqliteOnce(DB_FILE, (db) => {
+const getDb = openSqliteOnce(() => dataPath("rss-cache.sqlite"), (db) => {
   db.prepare(
     "CREATE TABLE IF NOT EXISTS rss_cache (feed_id TEXT PRIMARY KEY, fetched_at INTEGER NOT NULL, payload TEXT NOT NULL)",
   ).run();

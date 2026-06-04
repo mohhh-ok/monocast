@@ -1,18 +1,16 @@
 import { promises as fs } from "node:fs";
-import path from "node:path";
 import { atomicWriteJson } from "./atomic-json";
+import { dataPath } from "./data-dir";
 import type { Program } from "./queue.types";
 import { createSerialQueue } from "./serial";
 
 export type { Program };
 
-const DATA_FILE = path.join(process.cwd(), "data", "queue.json");
-
 type Store = { programs: Program[] };
 
 async function load(): Promise<Store> {
   try {
-    const buf = await fs.readFile(DATA_FILE, "utf8");
+    const buf = await fs.readFile(dataPath("queue.json"), "utf8");
     return JSON.parse(buf);
   } catch (err) {
     // ファイル未作成はノーマル。それ以外（パース失敗など）は呼び出し元で握り潰さず
@@ -25,7 +23,7 @@ async function load(): Promise<Store> {
 }
 
 async function save(store: Store): Promise<void> {
-  await atomicWriteJson(DATA_FILE, store);
+  await atomicWriteJson(dataPath("queue.json"), store);
 }
 
 const runExclusive = createSerialQueue();
@@ -64,7 +62,7 @@ export async function removeProgram(id: string): Promise<void> {
     s.programs = s.programs.filter((x) => x.id !== id);
     await save(s);
   });
-  const dir = path.join(process.cwd(), "data", "audio", id);
+  const dir = dataPath("audio", id);
   await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
 }
 

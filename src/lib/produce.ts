@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import path from "node:path";
 import { getConfig } from "@/config";
+import { dataPath } from "./data-dir";
 import { formatErrorChain } from "./error";
 import type { LlmAdapter } from "./llm/adapters/types";
 import { log } from "./log";
@@ -112,7 +112,7 @@ export async function produceProgram(
 
     checkAborted(signal);
     onPhase?.("tts");
-    const outDir = path.join(process.cwd(), "data", "audio", id);
+    const outDir = dataPath("audio", id);
     const tTts = Date.now();
     log.info(tag, `音声合成開始 -> data/audio/${id}/`);
 

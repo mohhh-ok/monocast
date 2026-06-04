@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
-import path from "node:path";
 import { createFileRoute } from "@tanstack/react-router";
+import { dataPath } from "@/lib/data-dir";
 
 const ID_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const SEG_PATTERN = /^seg-\d{3}\.wav$/;
@@ -12,13 +12,7 @@ export const Route = createFileRoute("/api/audio/$id/$seg")({
         if (!ID_PATTERN.test(params.id) || !SEG_PATTERN.test(params.seg)) {
           return new Response("not found", { status: 404 });
         }
-        const filePath = path.join(
-          process.cwd(),
-          "data",
-          "audio",
-          params.id,
-          params.seg,
-        );
+        const filePath = dataPath("audio", params.id, params.seg);
         try {
           const [stat, buf] = await Promise.all([
             fs.stat(filePath),

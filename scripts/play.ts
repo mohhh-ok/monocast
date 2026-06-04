@@ -13,6 +13,7 @@ import path from "node:path";
 import { promises as fs } from "node:fs";
 import { spawn, type ChildProcess } from "node:child_process";
 import { withResolvedActiveProfile } from "@/config";
+import { dataPath } from "@/lib/data-dir";
 import { pickAdapter } from "@/lib/llm/server";
 import { produceProgram, ProduceAbortedError } from "@/lib/produce";
 import { listPrograms, removeProgram } from "@/lib/queue";
@@ -21,7 +22,6 @@ import { log } from "@/lib/log";
 
 const TAG = "play";
 const MIN_QUEUE = 2;
-const DATA_AUDIO = path.join(process.cwd(), "data", "audio");
 
 // .env を process.env に流し込む（getEnv は process.env を読む）。Node 22+ の API。
 function loadEnvFiles(): void {
@@ -48,7 +48,7 @@ function isComplete(p: Program): boolean {
 }
 
 function segFile(id: string, index: number): string {
-  return path.join(DATA_AUDIO, id, `seg-${String(index).padStart(3, "0")}.wav`);
+  return dataPath("audio", id, `seg-${String(index).padStart(3, "0")}.wav`);
 }
 
 /**

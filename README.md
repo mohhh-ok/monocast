@@ -56,6 +56,7 @@ pnpm play
 | `VOICEVOX_URL` | VOICEVOX の接続先（既定 `http://localhost:50021`） |
 | `AIVISSPEECH_URL` | AivisSpeech の接続先（既定 `http://localhost:10101`） |
 | `KOKORO_URL` | Kokoro-FastAPI の接続先（既定 `http://localhost:8880`） |
+| `MONOCAST_DATA_DIR` | `data/` ディレクトリの場所を差し替える（既定はプロジェクト直下の `data/`。主にテスト用） |
 
 接続先 URL はプロファイルではなく環境全体で 1 つです。Docker のポートを変えた場合やリモートホストで動かす場合だけ設定してください。
 
@@ -147,6 +148,16 @@ curl -s http://localhost:8880/v1/audio/voices | jq
 | `data/seen.sqlite` | 過去 14 日に読んだ URL |
 | `data/audio/<id>/seg-NNN.wav` | 各番組の段落音声（`/api/audio/<id>/seg-NNN.wav` で配信、再生終了でディレクトリごと削除） |
 | `.logs/app.jsonl` | 詳細ログ（起動ごとにクリア） |
+
+`data/` の場所は環境変数 `MONOCAST_DATA_DIR` で差し替えられます（テストはこれで一時ディレクトリへ向けています）。
+
+## テスト
+
+```bash
+pnpm test   # vitest
+```
+
+純粋ロジック（台本処理・番組キュー・直列実行・locale 判定）のユニットテストです。LLM・TTS の実呼び出しは含みません。
 
 ## 仕様ドキュメント
 

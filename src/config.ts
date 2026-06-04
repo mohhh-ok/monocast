@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { atomicWriteJson } from "./lib/atomic-json";
+import { dataPath } from "./lib/data-dir";
 import { createSerialQueue } from "./lib/serial";
 import {
   ConfigSchema,
@@ -25,9 +26,10 @@ export {
 };
 export type { Config, DedupMode, LlmId, TtsId };
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const ROOT_FILE = path.join(DATA_DIR, "config.json");
-const PROFILES_DIR = path.join(DATA_DIR, "profiles");
+// パスはモジュールロード時に固定せず、毎回 dataPath() で解決する
+// （MONOCAST_DATA_DIR によるテスト時の差し替えを効かせるため）。
+const rootFile = () => dataPath("config.json");
+const profilesDir = () => dataPath("profiles");
 
 const DEFAULT_PROFILE_ID = "default";
 const DEFAULT_PROFILE_NAME = "default";
@@ -40,7 +42,7 @@ type ProfileFile = { name: string; config: unknown };
 const runExclusive = createSerialQueue();
 
 function profilePath(id: string): string {
-  return path.join(PROFILES_DIR, `${id}.json`);
+  return path.join(profilesDir(), `${id}.json`);
 }
 
 function isValidProfileId(id: string): boolean {
@@ -67,7 +69,7 @@ async function readJsonIfExists(file: string): Promise<unknown> {
 }
 
 async function migrateIfNeeded(): Promise<void> {
-  const root = await readJsonIfExists(ROOT_FILE);
+  const root = await readJsonIfExists(rootFile());
   // 既に新形式
   if (
     root &&
@@ -79,7 +81,7 @@ async function migrateIfNeeded(): Promise<void> {
   // 旧フラット形式 → default プロファイルへ移動
   if (looksLikeFlatConfig(root)) {
     const cfg = ConfigSchema.parse(root);
-    await fs.mkdir(PROFILES_DIR, { recursive: true });
+    await fs.mkdir(profilesDir(), { recursive: true });
     const file = profilePath(DEFAULT_PROFILE_ID);
     // 既に default が居る場合は上書きしない
     try {
@@ -90,11 +92,11 @@ async function migrateIfNeeded(): Promise<void> {
         config: cfg,
       } satisfies ProfileFile);
     }
-    await atomicWriteJson(ROOT_FILE, { activeProfileId: DEFAULT_PROFILE_ID });
+    await atomicWriteJson(rootFile(), { activeProfileId: DEFAULT_PROFILE_ID });
     return;
   }
   // 何もない（初回起動）: default を作成
-  await fs.mkdir(PROFILES_DIR, { recursive: true });
+  await fs.mkdir(profilesDir(), { recursive: true });
   const file = profilePath(DEFAULT_PROFILE_ID);
   try {
     await fs.access(file);
@@ -104,7 +106,7 @@ async function migrateIfNeeded(): Promise<void> {
       config: DEFAULT_CONFIG,
     } satisfies ProfileFile);
   }
-  await atomicWriteJson(ROOT_FILE, { activeProfileId: DEFAULT_PROFILE_ID });
+  await atomicWriteJson(rootFile(), { activeProfileId: DEFAULT_PROFILE_ID });
 }
 
 let migrated = false;
@@ -132,7 +134,7 @@ async function writeProfileFile(profile: Profile): Promise<void> {
 }
 
 async function readRoot(): Promise<{ activeProfileId: string }> {
-  const raw = await readJsonIfExists(ROOT_FILE);
+  const raw = await readJsonIfExists(rootFile());
   if (
     raw &&
     typeof raw === "object" &&
@@ -144,7 +146,7 @@ async function readRoot(): Promise<{ activeProfileId: string }> {
 }
 
 async function writeRoot(activeProfileId: string): Promise<void> {
-  await atomicWriteJson(ROOT_FILE, { activeProfileId });
+  await atomicWriteJson(rootFile(), { activeProfileId });
 }
 
 /** プロファイル一覧（id 昇順だが default は先頭）。 */
@@ -152,7 +154,7 @@ export async function listProfiles(): Promise<ProfileMeta[]> {
   await ensureMigrated();
   let entries: string[] = [];
   try {
-    entries = await fs.readdir(PROFILES_DIR);
+    entries = await fs.readdir(profilesDir());
   } catch {
     entries = [];
   }

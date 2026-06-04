@@ -1,11 +1,10 @@
-import path from "node:path";
+import { dataPath } from "../data-dir";
 import { openSqliteOnce } from "../sqlite";
 
-const DB_FILE = path.join(process.cwd(), "data", "seen.sqlite");
 const TTL_DAYS = 14;
 const TTL_MS = TTL_DAYS * 24 * 60 * 60 * 1000;
 
-const getDb = openSqliteOnce(DB_FILE, (db) => {
+const getDb = openSqliteOnce(() => dataPath("seen.sqlite"), (db) => {
   db.prepare(
     "CREATE TABLE IF NOT EXISTS seen_urls (url TEXT PRIMARY KEY, first_seen_at INTEGER NOT NULL)",
   ).run();
