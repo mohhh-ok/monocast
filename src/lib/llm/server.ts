@@ -46,7 +46,7 @@ function buildAdapter(id: LlmId, cfg: CfgLike, env: EnvLike): LlmAdapter {
       });
     case "ollama":
       return createOllamaAdapter({
-        baseUrl: cfg.ollamaUrl,
+        baseUrl: env.OLLAMA_URL,
         model: cfg.ollamaModel,
       });
   }

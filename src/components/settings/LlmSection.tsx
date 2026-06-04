@@ -87,31 +87,18 @@ export function LlmSection({ cfg, update }: Props) {
       )}
 
       {cfg.selectedLlm === "ollama" && (
-        <>
-          <Field
-            label="Ollama URL"
-            hint="OpenAI 互換エンドポイント (/v1/chat/completions) を使用"
-          >
-            <input
-              type="url"
-              value={cfg.ollamaUrl}
-              onChange={(e) => update("ollamaUrl", e.target.value)}
-              style={inputStyle}
-            />
-          </Field>
-          <Field
-            label="Ollama モデル"
-            hint="ローカルに pull 済みのモデル名を入力（候補はあくまで参考）"
-          >
-            <SearchableSelect
-              value={cfg.ollamaModel}
-              options={toOptions(OLLAMA_MODELS)}
-              onChange={(v) => update("ollamaModel", v)}
-              freeInput
-              inputStyle={inputStyle}
-            />
-          </Field>
-        </>
+        <Field
+          label="Ollama モデル"
+          hint="ローカルに pull 済みのモデル名を入力（候補はあくまで参考）/ URL を変える場合は .env.local の OLLAMA_URL（既定 http://localhost:11434）"
+        >
+          <SearchableSelect
+            value={cfg.ollamaModel}
+            options={toOptions(OLLAMA_MODELS)}
+            onChange={(v) => update("ollamaModel", v)}
+            freeInput
+            inputStyle={inputStyle}
+          />
+        </Field>
       )}
 
       <LlmSetup id={cfg.selectedLlm} />

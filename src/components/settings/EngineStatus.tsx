@@ -7,15 +7,14 @@ type EngineId = "voicevox" | "aivisspeech" | "kokoro";
 type State =
   | { kind: "idle" }
   | { kind: "checking" }
-  | { kind: "ok"; latencyMs: number }
-  | { kind: "down"; error?: string };
+  | { kind: "ok"; latencyMs: number; url: string }
+  | { kind: "down"; url?: string; error?: string };
 
 type Props = {
   id: EngineId;
-  url: string;
 };
 
-export function EngineStatus({ id, url }: Props) {
+export function EngineStatus({ id }: Props) {
   const [state, setState] = useState<State>({ kind: "idle" });
   // 直近のリクエストだけを反映するための世代カウンタ。
   const reqIdRef = useRef(0);
@@ -24,10 +23,10 @@ export function EngineStatus({ id, url }: Props) {
     const my = ++reqIdRef.current;
     setState({ kind: "checking" });
     try {
-      const r = await checkEngineHealthFn({ data: { id, url } });
+      const r = await checkEngineHealthFn({ data: { id } });
       if (my !== reqIdRef.current) return;
-      if (r.ok) setState({ kind: "ok", latencyMs: r.latencyMs ?? 0 });
-      else setState({ kind: "down", error: r.error });
+      if (r.ok) setState({ kind: "ok", latencyMs: r.latencyMs ?? 0, url: r.url });
+      else setState({ kind: "down", url: r.url, error: r.error });
     } catch (err) {
       if (my !== reqIdRef.current) return;
       setState({
@@ -37,16 +36,19 @@ export function EngineStatus({ id, url }: Props) {
     }
   };
 
-  // URL 変更時に 500ms デバウンスして再チェック
   useEffect(() => {
-    const t = setTimeout(check, 500);
-    return () => clearTimeout(t);
+    void check();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, url]);
+  }, [id]);
+
+  const url = state.kind === "ok" || state.kind === "down" ? state.url : undefined;
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
       <Badge state={state} />
+      {url && (
+        <span style={{ fontSize: 12, color: "#8a93b8" }}>{url}</span>
+      )}
       <button type="button" onClick={check} style={smallBtnStyle()}>
         再チェック
       </button>

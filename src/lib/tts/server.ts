@@ -53,12 +53,12 @@ async function pickAdapter(cfg: Awaited<ReturnType<typeof getConfig>>): Promise<
       });
     case "voicevox":
       return createVoicevoxAdapter({
-        voicevoxUrl: cfg.voicevoxUrl,
+        voicevoxUrl: getEnv().VOICEVOX_URL,
         speaker: cfg.voicevoxSpeaker,
       });
     case "aivisspeech":
       return createAivisSpeechAdapter({
-        url: cfg.aivisSpeechUrl,
+        url: getEnv().AIVISSPEECH_URL,
         speaker: cfg.aivisSpeechSpeaker,
       });
     case "openai": {
@@ -85,7 +85,7 @@ async function pickAdapter(cfg: Awaited<ReturnType<typeof getConfig>>): Promise<
     }
     case "kokoro":
       return createKokoroAdapter({
-        url: cfg.kokoroUrl,
+        url: getEnv().KOKORO_URL,
         voice: cfg.kokoroVoice,
       });
   }

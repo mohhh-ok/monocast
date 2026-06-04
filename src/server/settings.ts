@@ -38,7 +38,6 @@ const LLM_KEYS: ReadonlyArray<keyof Config> = [
   "anthropicModel",
   "openaiModel",
   "geminiModel",
-  "ollamaUrl",
   "ollamaModel",
   // 番組原稿の言語/ニュアンスは LLM プロンプトに直接影響する。
   "outputLanguageCode",
@@ -46,9 +45,7 @@ const LLM_KEYS: ReadonlyArray<keyof Config> = [
 ];
 const TTS_KEYS: ReadonlyArray<keyof Config> = [
   "selectedTts",
-  "voicevoxUrl",
   "voicevoxSpeaker",
-  "aivisSpeechUrl",
   "aivisSpeechSpeaker",
   "sayVoice",
   "sayRate",
@@ -58,7 +55,6 @@ const TTS_KEYS: ReadonlyArray<keyof Config> = [
   "openaiTtsVoice",
   "elevenlabsModelId",
   "elevenlabsVoiceId",
-  "kokoroUrl",
   "kokoroVoice",
   "ttsConcurrency",
 ];
@@ -384,18 +380,15 @@ async function fetchVoicevoxCompatSpeakers(url: string): Promise<SpeakerOption[]
 
 export const fetchSpeakersFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<SpeakerOption[]> => {
-    const cfg = await getConfig();
-    return fetchVoicevoxCompatSpeakers(cfg.voicevoxUrl);
+    return fetchVoicevoxCompatSpeakers(getEnv().VOICEVOX_URL);
   },
 );
 
-export const fetchAivisSpeakersFn = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ url: z.string().url() }).optional())
-  .handler(async ({ data }): Promise<SpeakerOption[]> => {
-    const cfg = await getConfig();
-    const url = data?.url ?? cfg.aivisSpeechUrl;
-    return fetchVoicevoxCompatSpeakers(url);
-  });
+export const fetchAivisSpeakersFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<SpeakerOption[]> => {
+    return fetchVoicevoxCompatSpeakers(getEnv().AIVISSPEECH_URL);
+  },
+);
 
 /** Kokoro voice 名から大まかな言語ラベルを推定（先頭2文字: af/am/bf/bm/jf/jm/zf/zm 等）。 */
 function kokoroVoiceLocale(name: string): string {
@@ -466,16 +459,16 @@ async function fetchKokoroVoicesFromUrl(url: string): Promise<KokoroVoiceOption[
   }
 }
 
-export const fetchKokoroVoicesFn = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ url: z.string().url() }).optional())
-  .handler(async ({ data }): Promise<KokoroVoiceOption[]> => {
-    const cfg = await getConfig();
-    const url = data?.url ?? cfg.kokoroUrl;
-    return fetchKokoroVoicesFromUrl(url);
-  });
+export const fetchKokoroVoicesFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<KokoroVoiceOption[]> => {
+    return fetchKokoroVoicesFromUrl(getEnv().KOKORO_URL);
+  },
+);
 
 export type EngineHealth = {
   ok: boolean;
+  /** env から解決した接続先 URL。UI 表示用。 */
+  url: string;
   status?: number;
   latencyMs?: number;
   error?: string;
@@ -510,16 +503,25 @@ const HEALTH_CHECK: Record<
   kokoro: { path: "/v1/audio/voices", validate: isKokoroVoices },
 };
 
+const ENGINE_URL_ENV: Record<
+  "voicevox" | "aivisspeech" | "kokoro",
+  "VOICEVOX_URL" | "AIVISSPEECH_URL" | "KOKORO_URL"
+> = {
+  voicevox: "VOICEVOX_URL",
+  aivisspeech: "AIVISSPEECH_URL",
+  kokoro: "KOKORO_URL",
+};
+
 export const checkEngineHealthFn = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       id: z.enum(["voicevox", "aivisspeech", "kokoro"]),
-      url: z.string().url(),
     }),
   )
   .handler(async ({ data }): Promise<EngineHealth> => {
+    const url = getEnv()[ENGINE_URL_ENV[data.id]];
     const { path, validate } = HEALTH_CHECK[data.id];
-    const target = `${data.url.replace(/\/$/, "")}${path}`;
+    const target = `${url.replace(/\/$/, "")}${path}`;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 2000);
     const start = Date.now();
@@ -530,7 +532,7 @@ export const checkEngineHealthFn = createServerFn({ method: "POST" })
       });
       const latencyMs = Date.now() - start;
       if (!res.ok) {
-        return { ok: false, status: res.status, latencyMs };
+        return { ok: false, url, status: res.status, latencyMs };
       }
       let body: unknown;
       try {
@@ -538,6 +540,7 @@ export const checkEngineHealthFn = createServerFn({ method: "POST" })
       } catch {
         return {
           ok: false,
+          url,
           status: res.status,
           latencyMs,
           error: "JSON parse 失敗 — 別サービスの可能性",
@@ -546,15 +549,17 @@ export const checkEngineHealthFn = createServerFn({ method: "POST" })
       if (!validate(body)) {
         return {
           ok: false,
+          url,
           status: res.status,
           latencyMs,
           error: "想定外のレスポンス形 — 別サービスの可能性",
         };
       }
-      return { ok: true, status: res.status, latencyMs };
+      return { ok: true, url, status: res.status, latencyMs };
     } catch (err) {
       return {
         ok: false,
+        url,
         latencyMs: Date.now() - start,
         error: err instanceof Error ? err.message : String(err),
       };
@@ -571,12 +576,12 @@ function buildPreviewAdapter(cfg: Config, voice: string | number): TtsAdapter {
   switch (cfg.selectedTts) {
     case "voicevox":
       return createVoicevoxAdapter({
-        voicevoxUrl: cfg.voicevoxUrl,
+        voicevoxUrl: getEnv().VOICEVOX_URL,
         speaker: Number(voice),
       });
     case "aivisspeech":
       return createAivisSpeechAdapter({
-        url: cfg.aivisSpeechUrl,
+        url: getEnv().AIVISSPEECH_URL,
         speaker: Number(voice),
       });
     case "say":
@@ -613,7 +618,7 @@ function buildPreviewAdapter(cfg: Config, voice: string | number): TtsAdapter {
     }
     case "kokoro":
       return createKokoroAdapter({
-        url: cfg.kokoroUrl,
+        url: getEnv().KOKORO_URL,
         voice: String(voice),
       });
   }

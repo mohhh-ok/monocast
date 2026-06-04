@@ -62,7 +62,7 @@ const STEPS: Record<LlmId, Step[]> = {
     {
       label: "サーバを起動",
       command: "ollama serve",
-      note: "既定で http://localhost:11434 を listen",
+      note: "既定で http://localhost:11434 を listen（変える場合は .env.local の OLLAMA_URL）",
     },
     {
       label: "モデルを取得",

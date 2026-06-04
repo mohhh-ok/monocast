@@ -224,9 +224,7 @@ export function TtsSection({
     setSpeakers(await fetchSpeakersFn());
   };
   const refreshAivisSpeakers = async () => {
-    setAivisSpeakers(
-      await fetchAivisSpeakersFn({ data: { url: cfg.aivisSpeechUrl } }),
-    );
+    setAivisSpeakers(await fetchAivisSpeakersFn());
   };
   const refreshSayVoices = async () => {
     setSayVoices(await fetchSayVoicesFn());
@@ -235,9 +233,7 @@ export function TtsSection({
     setSapiVoices(await fetchSapiVoicesFn());
   };
   const refreshKokoroVoices = async () => {
-    setKokoroVoices(
-      await fetchKokoroVoicesFn({ data: { url: cfg.kokoroUrl } }),
-    );
+    setKokoroVoices(await fetchKokoroVoicesFn());
   };
 
   const player = usePreviewPlayer();
@@ -371,14 +367,11 @@ export function TtsSection({
 
       {cfg.selectedTts === "voicevox" && (
         <>
-          <Field label="VOICEVOX URL">
+          <Field
+            label="VOICEVOX 接続"
+            hint="URL を変える場合は .env.local の VOICEVOX_URL（既定 http://localhost:50021）"
+          >
             <div style={{ display: "flex", gap: 8 }}>
-              <input
-                type="url"
-                value={cfg.voicevoxUrl}
-                onChange={(e) => update("voicevoxUrl", e.target.value)}
-                style={inputStyle}
-              />
               <button
                 type="button"
                 onClick={refreshSpeakers}
@@ -387,7 +380,7 @@ export function TtsSection({
                 話者を再取得
               </button>
             </div>
-            <EngineStatus id="voicevox" url={cfg.voicevoxUrl} />
+            <EngineStatus id="voicevox" />
           </Field>
 
           <Field
@@ -443,14 +436,11 @@ export function TtsSection({
 
       {cfg.selectedTts === "aivisspeech" && (
         <>
-          <Field label="AivisSpeech URL" hint="既定ポートは 10101">
+          <Field
+            label="AivisSpeech 接続"
+            hint="URL を変える場合は .env.local の AIVISSPEECH_URL（既定 http://localhost:10101）"
+          >
             <div style={{ display: "flex", gap: 8 }}>
-              <input
-                type="url"
-                value={cfg.aivisSpeechUrl}
-                onChange={(e) => update("aivisSpeechUrl", e.target.value)}
-                style={inputStyle}
-              />
               <button
                 type="button"
                 onClick={refreshAivisSpeakers}
@@ -459,7 +449,7 @@ export function TtsSection({
                 話者を再取得
               </button>
             </div>
-            <EngineStatus id="aivisspeech" url={cfg.aivisSpeechUrl} />
+            <EngineStatus id="aivisspeech" />
           </Field>
 
           <Field
@@ -601,14 +591,11 @@ export function TtsSection({
 
       {cfg.selectedTts === "kokoro" && (
         <>
-          <Field label="Kokoro-FastAPI URL" hint="既定ポートは 8880">
+          <Field
+            label="Kokoro-FastAPI 接続"
+            hint="URL を変える場合は .env.local の KOKORO_URL（既定 http://localhost:8880）"
+          >
             <div style={{ display: "flex", gap: 8 }}>
-              <input
-                type="url"
-                value={cfg.kokoroUrl}
-                onChange={(e) => update("kokoroUrl", e.target.value)}
-                style={inputStyle}
-              />
               <button
                 type="button"
                 onClick={refreshKokoroVoices}
@@ -617,7 +604,7 @@ export function TtsSection({
                 Voice を再取得
               </button>
             </div>
-            <EngineStatus id="kokoro" url={cfg.kokoroUrl} />
+            <EngineStatus id="kokoro" />
           </Field>
           {(() => {
             const f = applyLanguageFilter(kokoroVoices, cfg.outputLanguageCode);

@@ -5,6 +5,11 @@ const EnvSchema = z.object({
   OPENAI_API_KEY: z.string().min(1).optional(),
   GEMINI_API_KEY: z.string().min(1).optional(),
   ELEVENLABS_API_KEY: z.string().min(1).optional(),
+  // ローカルエンジンの接続先 URL。プロファイル単位ではなく環境全体で 1 つ。
+  OLLAMA_URL: z.string().url().default("http://localhost:11434"),
+  VOICEVOX_URL: z.string().url().default("http://localhost:50021"),
+  AIVISSPEECH_URL: z.string().url().default("http://localhost:10101"),
+  KOKORO_URL: z.string().url().default("http://localhost:8880"),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

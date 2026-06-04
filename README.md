@@ -44,9 +44,9 @@ pnpm play
 
 ## セットアップ
 
-`.env.local` で扱うのは API キーのみ。プロバイダ切替・モデル・URL・話者などの設定は **起動後にトップ画面の PROFILE バーの「編集」から** 開く設定ダイアログで行い、プロファイル単位で `data/profiles/<id>.json` に保存される。
+`.env.local` で扱うのは **API キーとローカルエンジンの接続先 URL**。プロバイダ切替・モデル・話者などの設定は **起動後にトップ画面の PROFILE バーの「編集」から** 開く設定ダイアログで行い、プロファイル単位で `data/profiles/<id>.json` に保存される。
 
-利用可能な API キー（必要なものだけでよい）:
+利用可能な環境変数（必要なものだけでよい）:
 
 | 変数 | 用途 |
 | --- | --- |
@@ -54,6 +54,12 @@ pnpm play
 | `OPENAI_API_KEY` | OpenAI の LLM・TTS を使うとき必須 |
 | `GEMINI_API_KEY` | Gemini を使うとき必須 |
 | `ELEVENLABS_API_KEY` | ElevenLabs を使うとき必須 |
+| `OLLAMA_URL` | Ollama の接続先（既定 `http://localhost:11434`） |
+| `VOICEVOX_URL` | VOICEVOX の接続先（既定 `http://localhost:50021`） |
+| `AIVISSPEECH_URL` | AivisSpeech の接続先（既定 `http://localhost:10101`） |
+| `KOKORO_URL` | Kokoro-FastAPI の接続先（既定 `http://localhost:8880`） |
+
+接続先 URL はプロファイルではなく環境全体で 1 つ。Docker のポートを変えた場合やリモートホストで動かす場合だけ設定すればよい。
 
 ### LLM プロバイダ
 
@@ -62,7 +68,7 @@ pnpm play
 | `anthropic` (既定) | `claude-haiku-4-5` | `ANTHROPIC_API_KEY` |
 | `openai` | `gpt-4.1-nano` | `OPENAI_API_KEY` |
 | `gemini` | `gemini-2.5-flash-lite` | `GEMINI_API_KEY` |
-| `ollama` | `qwen2.5:3b-instruct` | `http://localhost:11434` |
+| `ollama` | `qwen2.5:3b-instruct` | `OLLAMA_URL`（既定 `http://localhost:11434`） |
 
 いずれも JSON Schema で `{title, body}` を構造化出力させているのでフォーマット崩れは起きない。
 
@@ -81,9 +87,9 @@ ollama pull qwen2.5:3b-instruct          # 既定（軽量・日本語OK）
 
 | ID | デフォルト | 備考 |
 | --- | --- | --- |
-| `voicevox` (既定) | `http://localhost:50021` / 話者 `2`（四国めたん） | 日本語特化。Docker で起動 |
-| `aivisspeech` | `http://localhost:10101` | VOICEVOX 互換 API。Docker で起動 |
-| `kokoro` | `http://localhost:8880` / `af_heart` | 多言語（en/ja/zh ほか）。Docker で起動 |
+| `voicevox` (既定) | 話者 `2`（四国めたん） | 日本語特化。Docker で起動。URL は `VOICEVOX_URL` |
+| `aivisspeech` | — | VOICEVOX 互換 API。Docker で起動。URL は `AIVISSPEECH_URL` |
+| `kokoro` | `af_heart` | 多言語（en/ja/zh ほか）。Docker で起動。URL は `KOKORO_URL` |
 | `say` | システム既定の声 / 180wpm | macOS 内蔵、追加不要 |
 | `openai` | `gpt-4o-mini-tts` / `alloy` | `OPENAI_API_KEY` |
 | `elevenlabs` | `eleven_turbo_v2_5` / `21m00Tcm4TlvDq8ikWAM` | `ELEVENLABS_API_KEY` |

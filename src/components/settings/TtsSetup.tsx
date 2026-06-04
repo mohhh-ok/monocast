@@ -22,7 +22,7 @@ const STEPS: Record<TtsId, Step[]> = {
     {
       label: "サーバを起動",
       command: "docker compose --profile voicevox up -d",
-      note: "既定で http://localhost:50021 を listen",
+      note: "既定で http://localhost:50021 を listen（変える場合は .env.local の VOICEVOX_URL）",
     },
   ],
   aivisspeech: [
@@ -37,7 +37,7 @@ const STEPS: Record<TtsId, Step[]> = {
     {
       label: "サーバを起動",
       command: "docker compose --profile aivisspeech up -d",
-      note: "既定で http://localhost:10101 を listen",
+      note: "既定で http://localhost:10101 を listen（変える場合は .env.local の AIVISSPEECH_URL）",
     },
   ],
   say: [
@@ -115,7 +115,7 @@ const STEPS: Record<TtsId, Step[]> = {
         href: "https://github.com/remsky/Kokoro-FastAPI",
         text: "remsky/Kokoro-FastAPI",
       },
-      note: "既定で http://localhost:8880 を listen",
+      note: "既定で http://localhost:8880 を listen（変える場合は .env.local の KOKORO_URL）",
     },
     {
       label: "voice を選択",
