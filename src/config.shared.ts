@@ -24,7 +24,7 @@ export type DedupMode = (typeof DEDUP_MODES)[number];
 
 export const ConfigSchema = z.object({
   /** 番組生成に使う LLM。 */
-  selectedLlm: z.enum(LLM_IDS).default("anthropic"),
+  selectedLlm: z.enum(LLM_IDS).default("ollama"),
   anthropicModel: z.string().min(1).default("claude-haiku-4-5"),
   openaiModel: z.string().min(1).default("gpt-4.1-nano"),
   geminiModel: z.string().min(1).default("gemini-2.5-flash-lite"),

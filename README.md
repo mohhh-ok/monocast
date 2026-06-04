@@ -6,14 +6,27 @@
 
 ## Quick Start
 
+### A. ローカル完結（VOICEVOX + Ollama、API キー不要・既定）
+
 ```bash
 pnpm install
-cp .env.local.example .env.local           # 使うクラウド API のキーだけ入れる
-docker compose --profile voicevox up -d    # TTS エンジンを起動（後述）
+docker compose --profile voicevox --profile ollama up -d     # TTS + ローカル LLM を起動
+docker compose exec ollama ollama pull qwen2.5:3b-instruct   # 初回のみ
+pnpm dev                                                     # http://localhost:3000
+```
+
+### B. クラウド LLM を使う（Claude / OpenAI / Gemini）
+
+```bash
+pnpm install
+cp .env.local.example .env.local           # 使う API のキーを設定
+docker compose --profile voicevox up -d    # TTS エンジンを起動
 pnpm dev                                   # http://localhost:3000
 ```
 
-ブラウザを開くと、自動生成が始まります。再生ボタンで開始してください。
+起動後、PROFILE バーの「編集」から LLM を切り替えてください（既定は Ollama）。
+
+どちらの場合も、ブラウザを開くと自動生成が始まります。再生ボタンで開始してください。
 
 キューが 2 本未満になると裏で補充されます。プロバイダ・モデル・話者などはトップ画面の PROFILE バーの「編集」から切り替えられます（プロファイル単位で保存）。出力言語と任意のニュアンス指示（例: 固有名詞は英語読みのまま）もこのダイアログから設定でき、選んだ言語に応じて TTS の voice 一覧が自動で絞り込まれます。PROFILE で「🎲 ランダム」を選ぶと、番組生成のたびに既存プロファイルから 1 つランダムに使われます（LLM・TTS・RSS は 1 本の番組内で混ざらない）。
 
@@ -64,10 +77,10 @@ pnpm play
 
 | ID | デフォルトモデル | 備考 |
 | --- | --- | --- |
-| `anthropic` (既定) | `claude-haiku-4-5` | `ANTHROPIC_API_KEY` |
+| `anthropic` | `claude-haiku-4-5` | `ANTHROPIC_API_KEY` |
 | `openai` | `gpt-4.1-nano` | `OPENAI_API_KEY` |
 | `gemini` | `gemini-2.5-flash-lite` | `GEMINI_API_KEY` |
-| `ollama` | `qwen2.5:3b-instruct` | `OLLAMA_URL`（既定 `http://localhost:11434`） |
+| `ollama` (既定) | `qwen2.5:3b-instruct` | `OLLAMA_URL`（既定 `http://localhost:11434`） |
 
 いずれも JSON Schema で `{title, body}` を構造化出力させているのでフォーマット崩れは起きません。
 
