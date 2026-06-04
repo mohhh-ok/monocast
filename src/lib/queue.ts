@@ -32,7 +32,7 @@ const runExclusive = createSerialQueue();
 
 export async function listPrograms(): Promise<Program[]> {
   const s = await load();
-  // 古い順（作成順）に並べてラジオの流れにする
+  // 古い順（作成順）に並べて番組の流れにする
   return s.programs.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 

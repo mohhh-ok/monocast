@@ -17,7 +17,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Claude Haiku + VOICEVOX で生成する、ひとり用の情報ききながしラジオ",
+          "LLM + TTS で生成する、ひとり用の聞き流し情報収集ツール",
       },
     ],
     links: [{ rel: "stylesheet", href: appCss }],

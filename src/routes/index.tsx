@@ -244,7 +244,7 @@ function Home() {
           ON AIR · MONOCAST
         </div>
         <h1 style={{ fontSize: 22, fontWeight: 500, color: "#cbd2ee" }}>
-          ひとりのための、ききながし
+          聞き流して、情報収集
         </h1>
       </header>
 

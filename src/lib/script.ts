@@ -6,8 +6,8 @@ function buildSystemPrompt(languageCode: string): string {
   const isJa = languageCode === "ja" || languageCode === "";
   const langName = languageHumanName(languageCode || "ja");
   if (isJa) {
-    return `あなたは「ききながしラジオ」のパーソナリティです。
-作業中や寝る前に流して心地よい、落ち着いたトーンの日本語ナレーション原稿を書きます。
+    return `あなたは、聞き流しで情報収集するための読み上げ原稿を書くナレーターです。
+作業中や移動中に流しっぱなしにするだけで情報が頭に入る、落ち着いたトーンの日本語ナレーション原稿を書きます。
 
 ルール:
 - 1人語り。聴取者への呼びかけは控えめに、淡々と。
@@ -21,8 +21,8 @@ function buildSystemPrompt(languageCode: string): string {
 - 段落の区切りには必ず改行 \\n を入れる。1段落は最大でも 400 字以内に収め、改行のない長文ベタ書きは禁止。1記事につき 1 段落以上。
 - 各記事の文数（5〜8文）・字数（250〜400字）と全件紹介のルールを厳守すること。記事を端折って短く済ませる原稿は不可。`;
   }
-  return `You are the host of a calm, ambient-listening radio program called "Monocast".
-The script is meant to be played in the background while working or before sleep, so the tone stays soft and steady.
+  return `You are the narrator of "Monocast", a calm spoken digest for passive, ambient information gathering.
+The script is meant to be played in the background while working or commuting, letting the listener absorb the news without focusing on it, so the tone stays soft and steady.
 
 The user prompt that follows is written in Japanese for convenience, but the output language is strictly ${langName} (${languageCode}). Write the entire narration — title and body — in ${langName}. Translate or paraphrase any source material that is in another language; never read the original text verbatim if it is not in ${langName}, and do not leave Japanese characters in the output even for proper nouns.
 
@@ -80,23 +80,23 @@ function timeSlotLabel(h: number): string {
 
 const SLOT_EXAMPLE_GREETINGS: Record<string, { open: string; close: string }> = {
   朝: {
-    open: "おはようございます。ききながしラジオの時間です。今朝もいくつかの話題を順番にお届けします。",
+    open: "おはようございます。今朝もいくつかの話題を順番にお届けします。",
     close: "それでは今日はこのあたりで。よい一日をお過ごしください。",
   },
   昼: {
-    open: "こんにちは。ききながしラジオの時間です。お昼のひとときにいくつかの話題を順番にお届けします。",
+    open: "こんにちは。お昼のひとときにいくつかの話題を順番にお届けします。",
     close: "それではこのあたりで。よい午後をお過ごしください。",
   },
   夕方: {
-    open: "こんばんは。ききながしラジオの時間です。日が傾く頃、いくつかの話題を順番にお届けします。",
+    open: "こんばんは。日が傾く頃、いくつかの話題を順番にお届けします。",
     close: "それでは今日はこのあたりで。よい夕べをお過ごしください。",
   },
   夜: {
-    open: "こんばんは。ききながしラジオの時間です。今夜もいくつかの話題を順番にお届けします。",
+    open: "こんばんは。今夜もいくつかの話題を順番にお届けします。",
     close: "それでは今日はこのあたりで。よい夜をお過ごしください。",
   },
   深夜: {
-    open: "こんばんは。ききながしラジオの時間です。静かな深夜の時間に、いくつかの話題を順番にお届けします。",
+    open: "こんばんは。静かな深夜の時間に、いくつかの話題を順番にお届けします。",
     close: "それでは今日はこのあたりで。どうぞよい夢を。",
   },
 };
@@ -156,7 +156,7 @@ The following instructions and source items are written in Japanese, but the out
     ? `\n\n追加のニュアンス指示（言語スタイル）: ${languageNotes}`
     : "";
 
-  const userPrompt = `${languageHeader}以下の ${items.length} 件のニュース項目を素材に、ききながしラジオの 1 番組分の原稿を書いてください。${items.length} 件すべてを必ず紹介してください。素材を間引いたり、複数の素材を1つにまとめたりしないでください。
+  const userPrompt = `${languageHeader}以下の ${items.length} 件のニュース項目を素材に、聞き流しで情報収集するための 1 番組分の読み上げ原稿を書いてください。${items.length} 件すべてを必ず紹介してください。素材を間引いたり、複数の素材を1つにまとめたりしないでください。
 
 配信時間帯: ${slot}
 
@@ -168,7 +168,7 @@ JSON で {"title": "...", "body": "..."} の形で返してください。body �
 title（番組タイトル）のルール:
 - 20 文字以内。記号・絵文字・かぎ括弧は使わない。
 - 配信時間帯「${slot}」の雰囲気、または素材の中心となるテーマ・キーワードのどちらかを毎回違う切り口で反映する。
-- 「ききながしニュース」「ききながしラジオ」のような番組名そのままの固定句は使わない。
+- 「聞き流しニュース」「ききながしラジオ」のようなコンセプトそのままの固定句は使わない。
 - 「○○の○○便」「○○の○○ラジオ」のようなテンプレ語尾に固執しない。毎回語感を変える。
 - 過度に煽情的・断定的な見出しは避け、心地よい落ち着いた語感にする。
 
