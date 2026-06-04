@@ -4,17 +4,42 @@
   padding: 0;
 }
 
+/* ヴィンテージ FM チューナー配色 */
+:root {
+  --radio-bg: #0a0604;
+  --radio-panel: #1b110a;
+  --radio-panel-deep: #120b06;
+  --radio-line: rgba(255, 182, 72, 0.18);
+  --radio-line-faint: rgba(255, 182, 72, 0.09);
+  --amber: #ffb648;
+  --amber-bright: #ffd28a;
+  --amber-dim: #c98f3d;
+  --amber-glow: rgba(255, 182, 72, 0.35);
+  --cream: #f0e4c8;
+  --cream-dim: #b3a37f;
+  --cream-faint: #7c6e52;
+  --needle-red: #ff4a3c;
+  --font-display: "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
+  --font-mono: "SF Mono", Menlo, "Osaka-Mono", monospace;
+}
+
 html,
 body {
   min-height: 100vh;
-  background: radial-gradient(
-      ellipse at top,
-      #1d2540 0%,
-      #0c0f1c 60%,
-      #050710 100%
-    )
-    fixed;
-  color: #e6e9f5;
+  background:
+    radial-gradient(
+      ellipse 130% 70% at 50% -15%,
+      rgba(96, 58, 22, 0.55) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 100% 100% at 50% 110%,
+      rgba(40, 22, 8, 0.8) 0%,
+      transparent 70%
+    ),
+    var(--radio-bg);
+  background-attachment: fixed;
+  color: var(--cream);
   font-family:
     "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", system-ui,
     sans-serif;
@@ -31,9 +56,134 @@ button {
 }
 
 a {
-  color: #a3b8ff;
+  color: var(--amber-bright);
   text-decoration: none;
 }
 a:hover {
   text-decoration: underline;
+}
+
+/* ON AIR ランプの明滅 */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ダイヤル窓のバックライトのゆらぎ */
+@keyframes dial-glow {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* VU メーターの揺れ（装飾。実音声は解析していない） */
+@keyframes vu-a {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  20% {
+    transform: scaleY(0.85);
+  }
+  45% {
+    transform: scaleY(0.5);
+  }
+  70% {
+    transform: scaleY(1);
+  }
+}
+@keyframes vu-b {
+  0%,
+  100% {
+    transform: scaleY(0.6);
+  }
+  30% {
+    transform: scaleY(0.25);
+  }
+  55% {
+    transform: scaleY(0.9);
+  }
+  80% {
+    transform: scaleY(0.45);
+  }
+}
+@keyframes vu-c {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+  25% {
+    transform: scaleY(0.7);
+  }
+  50% {
+    transform: scaleY(0.35);
+  }
+  75% {
+    transform: scaleY(0.95);
+  }
+}
+
+.vu-bar {
+  transform-origin: bottom;
+  transform: scaleY(0.12);
+}
+.vu-bar.on {
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+.vu-bar.on:nth-child(3n + 1) {
+  animation-name: vu-a;
+  animation-duration: 0.9s;
+}
+.vu-bar.on:nth-child(3n + 2) {
+  animation-name: vu-b;
+  animation-duration: 1.1s;
+}
+.vu-bar.on:nth-child(3n) {
+  animation-name: vu-c;
+  animation-duration: 0.75s;
+}
+
+/* 周波数針の移動をなめらかに */
+.dial-needle {
+  transition: left 0.4s linear;
+}
+
+/* 音量スライダー（アンバー基調） */
+input[type="range"].radio-volume {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--radio-line);
+  outline: none;
+}
+input[type="range"].radio-volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--amber);
+  border: 2px solid var(--radio-panel-deep);
+  box-shadow: 0 0 8px var(--amber-glow);
+  cursor: pointer;
+}
+input[type="range"].radio-volume::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--amber);
+  border: 2px solid var(--radio-panel-deep);
+  box-shadow: 0 0 8px var(--amber-glow);
+  cursor: pointer;
 }

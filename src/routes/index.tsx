@@ -214,12 +214,16 @@ function Home() {
       // まだ番組は続く。次の URL が来てない可能性があるので即 refresh も投げる。
       setSegIndex(next);
       if (next >= current.audioSegments.length) {
+        // 次セグメント未合成。準備中の間 ON AIR 表示が点きっぱなしにならないようにする
+        setPlaying(false);
         refresh().catch(() => {});
       }
       return;
     }
+    // 番組終了。次番組の onPlay が来るまで STANDBY 表示に戻す
+    setPlaying(false);
     await finishCurrent();
-  }, [current, segIndex, setSegIndex, finishCurrent, refresh]);
+  }, [current, segIndex, setSegIndex, setPlaying, finishCurrent, refresh]);
 
   return (
     <main
@@ -235,15 +239,25 @@ function Home() {
       <header style={{ textAlign: "center", width: "min(640px, 100%)" }}>
         <div
           style={{
-            fontSize: 12,
-            letterSpacing: "0.4em",
-            color: "#8a93b8",
-            marginBottom: 8,
+            fontFamily: "var(--font-display)",
+            fontSize: 30,
+            fontWeight: 600,
+            letterSpacing: "0.28em",
+            color: "var(--amber)",
+            textShadow: "0 0 24px var(--amber-glow)",
+            marginBottom: 6,
           }}
         >
-          ON AIR · MONOCAST
+          MONOCAST
         </div>
-        <h1 style={{ fontSize: 22, fontWeight: 500, color: "#cbd2ee" }}>
+        <h1
+          style={{
+            fontSize: 12,
+            fontWeight: 400,
+            letterSpacing: "0.5em",
+            color: "var(--cream-dim)",
+          }}
+        >
           聞き流して、情報収集
         </h1>
       </header>
@@ -285,11 +299,8 @@ function Home() {
         onProfilesChange={setProfiles}
       />
 
+      {/* pulse などの keyframes は styles.css に定義している */}
       <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }
         dialog::backdrop {
           background: rgba(0, 0, 0, 0.6);
           backdrop-filter: blur(4px);

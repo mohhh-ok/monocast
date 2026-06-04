@@ -34,10 +34,10 @@ type Props = {
 const DEFAULT_INPUT_STYLE: CSSProperties = {
   width: "100%",
   padding: "10px 12px",
-  background: "rgba(0,0,0,0.25)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: 8,
-  color: "#e6e9f5",
+  background: "rgba(0,0,0,0.3)",
+  border: "1px solid var(--radio-line-faint)",
+  borderRadius: 6,
+  color: "var(--cream)",
   fontSize: 14,
   fontFamily: "inherit",
 };
@@ -172,7 +172,7 @@ export function SearchableSelect({
               style={{
                 ...optionStyle,
                 background:
-                  i === highlight ? "rgba(255,255,255,0.1)" : "transparent",
+                  i === highlight ? "rgba(255, 182, 72, 0.12)" : "transparent",
               }}
             >
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -208,20 +208,20 @@ const dropdownStyle: CSSProperties = {
   marginTop: 4,
   maxHeight: 240,
   overflowY: "auto",
-  background: "rgba(15, 18, 32, 0.98)",
-  border: "1px solid rgba(255,255,255,0.12)",
-  borderRadius: 8,
+  background: "var(--radio-panel)",
+  border: "1px solid var(--radio-line)",
+  borderRadius: 6,
   padding: 4,
   margin: 0,
   listStyle: "none",
-  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
 };
 
 const optionStyle: CSSProperties = {
   padding: "8px 10px",
-  borderRadius: 6,
+  borderRadius: 4,
   fontSize: 13,
-  color: "#cbd2ee",
+  color: "var(--cream)",
   cursor: "pointer",
   display: "flex",
   alignItems: "center",

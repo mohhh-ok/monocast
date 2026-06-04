@@ -73,7 +73,11 @@ export function ProfileBar({
       }}
     >
       <span
-        style={{ fontSize: 11, letterSpacing: "0.3em", color: "#8a93b8" }}
+        style={{
+          fontSize: 11,
+          letterSpacing: "0.3em",
+          color: "var(--amber-dim)",
+        }}
       >
         PROFILE
       </span>
@@ -132,7 +136,7 @@ export function ProfileBar({
               disabled={deleteDisabled}
               style={{
                 ...menuItemStyle(deleteDisabled),
-                color: deleteDisabled ? "#e6e9f5" : "#ffb8c0",
+                color: deleteDisabled ? "var(--cream)" : "#ff8a7a",
               }}
             >
               削除
@@ -159,10 +163,10 @@ export function ProfileBar({
 
 const btnStyle: CSSProperties = {
   padding: "8px 12px",
-  borderRadius: 8,
-  background: "rgba(255,255,255,0.06)",
-  border: "1px solid rgba(255,255,255,0.12)",
-  color: "#e6e9f5",
+  borderRadius: 6,
+  background: "rgba(255, 182, 72, 0.06)",
+  border: "1px solid var(--radio-line)",
+  color: "var(--cream)",
   fontSize: 12,
   whiteSpace: "nowrap",
   cursor: "pointer",
@@ -174,10 +178,10 @@ const menuStyle: CSSProperties = {
   right: 0,
   minWidth: 140,
   padding: 4,
-  background: "#1a1d2e",
-  border: "1px solid rgba(255,255,255,0.12)",
-  borderRadius: 8,
-  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+  background: "var(--radio-panel)",
+  border: "1px solid var(--radio-line)",
+  borderRadius: 6,
+  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
   zIndex: 20,
   display: "flex",
   flexDirection: "column",
@@ -186,16 +190,16 @@ const menuStyle: CSSProperties = {
 const menuSeparatorStyle: CSSProperties = {
   height: 1,
   margin: "4px 2px",
-  background: "rgba(255,255,255,0.08)",
+  background: "var(--radio-line-faint)",
 };
 
 const menuItemStyle = (disabled: boolean): CSSProperties => ({
   textAlign: "left",
   padding: "8px 10px",
-  borderRadius: 6,
+  borderRadius: 4,
   background: "transparent",
   border: "none",
-  color: "#e6e9f5",
+  color: "var(--cream)",
   fontSize: 13,
   cursor: disabled ? "not-allowed" : "pointer",
   opacity: disabled ? 0.4 : 1,
